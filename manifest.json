@@ -1,0 +1,20 @@
+[
+    {
+        "guid": "b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1",
+        "name": "ABR HLS Cinema",
+        "description": "True ABR Streaming for Jellyfin (Netflix-Style)",
+        "overview": "True ABR Streaming for Jellyfin (Netflix-Style)",
+        "owner": "itsmynt",
+        "category": "General",
+        "versions": [
+            {
+                "version": "0.0.0.6.8",
+                "changelog": "Update to version 0.0.0.6.8",
+                "targetAbi": "10.10.0.0",
+                "sourceUrl": "https://itsmynt.github.io/jellyfin-vibe-abrhls/Jellyfin.ABRHls.zip/abr-hls-cinema/abr-hls-cinema_0.0.0.6.8.zip",
+                "checksum": "e00c88a5f568788203d44eb37f3d1119",
+                "timestamp": "2025-11-18T23:32:17Z"
+            }
+        ]
+    }
+]
