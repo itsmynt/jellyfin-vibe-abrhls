@@ -23,8 +23,7 @@ jobs:
 
       - name: Build Plugin
         run: |
-          dotnet publish src/Jellyfin.ABRHls.csproj --configuration Release --output bin/publish
-
+          dotnet publish Jellyfin.ABRHls.csproj --configuration Release --output bin/publish
       - name: Create Zip
         run: |
           cd bin/publish
