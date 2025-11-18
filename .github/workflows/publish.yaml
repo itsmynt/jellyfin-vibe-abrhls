@@ -21,7 +21,6 @@ jobs:
         with:
           dotnet-version: 8.0.x
       
-      # Wir installieren Python für das Repo-Tool
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -29,7 +28,6 @@ jobs:
 
       - name: Build Plugin
         run: |
-          # Wir nutzen die Wildcard (*), damit er die csproj immer findet
           dotnet publish src/*.csproj --configuration Release --output bin/publish
 
       - name: Create Zip
@@ -39,18 +37,19 @@ jobs:
           
       - name: Setup JPRM (Repository Manager)
         run: |
-          # HIER WAR DER FEHLER: Wir nutzen jetzt das offizielle Python Tool
           pip install jprm
           
       - name: Create/Update Manifest
         env:
-          REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          # Basis-URL deiner GitHub Pages Seite
+          BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
-          # Initialisiere das Repo im aktuellen Ordner (.)
-          jprm repo init . --url $REPO_URL
+          # 1. Repo initialisieren (OHNE URL!)
+          jprm repo init .
           
-          # Füge das ZIP hinzu
-          jprm repo add . Jellyfin.ABRHls.zip --url $REPO_URL
+          # 2. Zip hinzufügen und HIER die volle Download-URL angeben
+          # Wir setzen die URL direkt auf die ZIP-Datei
+          jprm repo add . Jellyfin.ABRHls.zip --url ${BASE_URL}/Jellyfin.ABRHls.zip
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -58,4 +57,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
           keep_files: true
-          exclude_assets: '.github,src,bin,obj' # Alles unnötige rausfiltern
+          exclude_assets: '.github,src,bin,obj'
