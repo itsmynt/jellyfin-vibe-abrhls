@@ -1,20 +1,27 @@
-namespace Jellyfin.ABRHls; // Namespace angepasst an den Rest
+namespace Jellyfin.ABRHls;
 
+// Wir nutzen hier 'record', das erstellt automatisch einen Konstruktor
 public record LadderProfile(
-    string Name, // Umbenannt von Label zu Name (passt besser zur Config)
-    int Width,
-    int Height,
-    long MinBitrate,
-    long TargetBitrate, // Wir nutzen dies als Haupt-Bitrate
-    long MaxBitrate,
-    string VideoCodec,
-    string AudioCodec,
-    long AudioBitrate,
-    bool UseOriginalResolution = false,
-    bool CopyVideo = false // Neu: Erlaubt "copy" (schnell) statt Transcode
+    string Name, 
+    int Width, 
+    int Height, 
+    long MinBitrate, 
+    long TargetBitrate, 
+    long MaxBitrate, 
+    string VideoCodec, 
+    string AudioCodec, 
+    long AudioBitrate, 
+    bool UseOriginalResolution = false, 
+    bool CopyVideo = false
 )
 {
-    // Hilfseigenschaften für FFmpeg Kalkulationen
+    // --- FIX: Helper-Eigenschaften für den Packager ---
+    // Der Packager sucht nach "Bitrate", wir haben "TargetBitrate" -> wir leiten es um.
     public long Bitrate => TargetBitrate;
+    
+    // Der Packager sucht nach "Maxrate", wir haben "MaxBitrate".
+    public long Maxrate => MaxBitrate; 
+    
+    // Buffergröße berechnen wir automatisch
     public long Bufsize => MaxBitrate * 2;
 }
