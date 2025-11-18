@@ -34,16 +34,19 @@ jobs:
         run: |
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
+          # Aktuelles Datum im ISO-Format (UTC)
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           
           cd bin/publish
           
-          # HIER WAR DER FEHLER: "changelog" hat gefehlt!
+          # HIER WAR DER FEHLER: "timestamp" hat gefehlt!
           # Wir fügen es jetzt hinzu.
           cat <<EOF > meta.json
           {
             "name": "ABR HLS Cinema",
             "guid": "b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1",
             "version": "$VERSION",
+            "timestamp": "$TIMESTAMP",
             "description": "True ABR Streaming for Jellyfin (Netflix-Style)",
             "overview": "True ABR Streaming for Jellyfin (Netflix-Style)",
             "owner": "${{ github.repository_owner }}",
