@@ -1,0 +1,50 @@
+name: Build and Publish Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build Plugin
+        run: |
+          dotnet publish src/Jellyfin.ABRHls.csproj --configuration Release --output bin/publish
+
+      - name: Create Zip
+        run: |
+          cd bin/publish
+          zip -r ../../Jellyfin.ABRHls.zip .
+          
+      - name: Setup JPRM
+        run: |
+          dotnet tool install --global Tpfaob.Jellyfin.Plugin.Repository.Manager.Cli
+          
+      - name: Create/Update Manifest
+        env:
+          REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: |
+          jprm repo init --url $REPO_URL
+          jprm repo add --url $REPO_URL --zip Jellyfin.ABRHls.zip
+          
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          keep_files: true
+          exclude_assets: '.github,src'
