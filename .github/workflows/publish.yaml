@@ -22,8 +22,10 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Build Plugin
+        # HIER WAR DER FEHLER: Wir haben 'src/' entfernt
         run: |
           dotnet publish Jellyfin.ABRHls.csproj --configuration Release --output bin/publish
+
       - name: Create Zip
         run: |
           cd bin/publish
