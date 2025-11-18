@@ -37,8 +37,8 @@ jobs:
           
           cd bin/publish
           
-          # HIER WAR DER FEHLER: "overview" hat gefehlt!
-          # Wir fügen es jetzt hinzu (einfach das gleiche wie description).
+          # HIER WAR DER FEHLER: "changelog" hat gefehlt!
+          # Wir fügen es jetzt hinzu.
           cat <<EOF > meta.json
           {
             "name": "ABR HLS Cinema",
@@ -48,7 +48,8 @@ jobs:
             "overview": "True ABR Streaming for Jellyfin (Netflix-Style)",
             "owner": "${{ github.repository_owner }}",
             "category": "General",
-            "targetAbi": "10.10.0.0"
+            "targetAbi": "10.10.0.0",
+            "changelog": "Update to version $VERSION"
           }
           EOF
           
