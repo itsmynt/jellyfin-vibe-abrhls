@@ -2,7 +2,7 @@ using System.Diagnostics;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Controller.Entities; // <--- Das hier hat gefehlt!
+using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.ABRHls.Services;
@@ -15,7 +15,12 @@ public class HlsPackager
     private readonly Plugin _plugin;
 
     public HlsPackager(ILogger<HlsPackager> log, IApplicationPaths paths, ILibraryManager library)
-    { _log = log; _paths = paths; _library = library; _plugin = (Plugin)Plugin.Instance!; }
+    { 
+        _log = log; 
+        _paths = paths; 
+        _library = library; 
+        _plugin = Plugin.Instance!; // Das funktioniert jetzt, weil wir Instance in Plugin.cs hinzugefügt haben
+    }
 
     public string GetOutputDir(Guid itemId, string profile = "default")
     {
@@ -53,13 +58,13 @@ public class HlsPackager
         string? srcAcodec = null; int? srcChannels = null; bool srcIsEac3Atmos = false;
         try
         {
-            var audioStream = item.GetMediaStream(MediaStreamType.Audio); // Optimierter Zugriff
+            // FIX: Wir nutzen GetMediaStreams() statt GetMediaStream()
+            var audioStream = item.GetMediaStreams().FirstOrDefault(s => s.Type == MediaStreamType.Audio);
             if (audioStream != null)
             {
                 srcAcodec = audioStream.Codec?.ToLowerInvariant();
                 srcChannels = audioStream.Channels;
-                // Vereinfachter Check um NullPointer zu vermeiden
-                srcIsEac3Atmos = srcAcodec == "eac3"; 
+                srcIsEac3Atmos = srcAcodec == "eac3";
             }
         }
         catch {}
