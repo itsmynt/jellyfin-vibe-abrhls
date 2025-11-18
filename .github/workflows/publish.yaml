@@ -20,27 +20,37 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      
+      # Wir installieren Python für das Repo-Tool
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
 
       - name: Build Plugin
-        # KORREKTUR: Exakter Pfad mit großem "HLS" am Ende
         run: |
-          dotnet publish src/Jellyfin.ABRHLS.csproj --configuration Release --output bin/publish
+          # Wir nutzen die Wildcard (*), damit er die csproj immer findet
+          dotnet publish src/*.csproj --configuration Release --output bin/publish
 
       - name: Create Zip
         run: |
           cd bin/publish
-          zip -r ../../Jellyfin.ABRHLS.zip .
+          zip -r ../../Jellyfin.ABRHls.zip .
           
-      - name: Setup JPRM
+      - name: Setup JPRM (Repository Manager)
         run: |
-          dotnet tool install --global Tpfaob.Jellyfin.Plugin.Repository.Manager.Cli
+          # HIER WAR DER FEHLER: Wir nutzen jetzt das offizielle Python Tool
+          pip install jprm
           
       - name: Create/Update Manifest
         env:
           REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
-          jprm repo init --url $REPO_URL
-          jprm repo add --url $REPO_URL --zip Jellyfin.ABRHLS.zip
+          # Initialisiere das Repo im aktuellen Ordner (.)
+          jprm repo init . --url $REPO_URL
+          
+          # Füge das ZIP hinzu
+          jprm repo add . Jellyfin.ABRHls.zip --url $REPO_URL
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -48,4 +58,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: .
           keep_files: true
-          exclude_assets: '.github,src'
+          exclude_assets: '.github,src,bin,obj' # Alles unnötige rausfiltern
