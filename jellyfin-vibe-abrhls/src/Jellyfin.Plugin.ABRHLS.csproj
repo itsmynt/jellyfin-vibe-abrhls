@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Jellyfin.ABRHls</RootNamespace>
+    <AssemblyName>Jellyfin.ABRHls</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>DeinName</Authors>
+    <Description>Native ABR HLS Streaming for Jellyfin</Description>
+    
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Jellyfin.Controller" Version="10.10.3" />
+    <PackageReference Include="Jellyfin.Model" Version="10.10.3" />
+    <PackageReference Include="Jellyfin.Data" Version="10.10.3" />
+    
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+    
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="web\abr-player.html">
+      <LogicalName>Jellyfin.ABRHls.web.abr-player.html</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="web\abr-player.js">
+      <LogicalName>Jellyfin.ABRHls.web.abr-player.js</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>
