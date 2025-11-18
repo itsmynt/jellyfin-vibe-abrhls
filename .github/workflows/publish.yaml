@@ -16,28 +16,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      # --- NEUER SCHRITT ZUR FEHLERSUCHE ---
-      - name: List all files (Debug)
-        run: |
-          echo "Zeige Dateistruktur:"
-          ls -R
-      # -------------------------------------
-
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
       - name: Build Plugin
-        # Ich setze hier mal Platzhalter, wir schauen erst in die Logs
+        # KORREKTUR: Exakter Pfad mit großem "HLS" am Ende
         run: |
-          # Wir probieren es mit einem Wildcard (*), das findet die Datei egal wie sie heißt!
-          dotnet publish *.csproj --configuration Release --output bin/publish
+          dotnet publish src/Jellyfin.ABRHLS.csproj --configuration Release --output bin/publish
 
       - name: Create Zip
         run: |
           cd bin/publish
-          zip -r ../../Jellyfin.ABRHls.zip .
+          zip -r ../../Jellyfin.ABRHLS.zip .
           
       - name: Setup JPRM
         run: |
@@ -48,7 +40,7 @@ jobs:
           REPO_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
           jprm repo init --url $REPO_URL
-          jprm repo add --url $REPO_URL --zip Jellyfin.ABRHls.zip
+          jprm repo add --url $REPO_URL --zip Jellyfin.ABRHLS.zip
           
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
