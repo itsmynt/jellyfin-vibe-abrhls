@@ -30,25 +30,43 @@ jobs:
         run: |
           dotnet publish src/*.csproj --configuration Release --output bin/publish
 
-      - name: Create Zip
+      - name: Create Zip with Meta
         run: |
+          # 1. Version aus dem Tag holen (z.B. v1.0.11 -> 1.0.11)
+          VERSION=${{ github.ref_name }}
+          VERSION=${VERSION#v}
+          
           cd bin/publish
+          
+          # 2. WICHTIG: Wir erstellen den "Spickzettel" (meta.json) manuell
+          # Das verhindert den "Metadata not provided" Fehler!
+          cat <<EOF > meta.json
+          {
+            "name": "ABR HLS Cinema",
+            "guid": "b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1",
+            "version": "$VERSION",
+            "description": "True ABR Streaming for Jellyfin (Netflix-Style)",
+            "owner": "${{ github.repository_owner }}",
+            "category": "General",
+            "targetAbi": "10.10.0.0"
+          }
+          EOF
+          
+          # 3. Zip erstellen (inklusive der neuen meta.json)
           zip -r ../../Jellyfin.ABRHls.zip .
           
-      - name: Setup JPRM (Repository Manager)
+      - name: Setup JPRM
         run: |
           pip install jprm
           
       - name: Create/Update Manifest
         env:
-          # Basis-URL deiner GitHub Pages Seite
           BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
-          # 1. Repo initialisieren (OHNE URL!)
+          # Repo initialisieren
           jprm repo init .
           
-          # 2. Zip hinzufügen und HIER die volle Download-URL angeben
-          # Wir setzen die URL direkt auf die ZIP-Datei
+          # Plugin hinzufügen
           jprm repo add . Jellyfin.ABRHls.zip --url ${BASE_URL}/Jellyfin.ABRHls.zip
           
       - name: Deploy to GitHub Pages
