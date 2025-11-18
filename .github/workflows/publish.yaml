@@ -32,27 +32,26 @@ jobs:
 
       - name: Create Zip with Meta
         run: |
-          # 1. Version aus dem Tag holen (z.B. v1.0.11 -> 1.0.11)
           VERSION=${{ github.ref_name }}
           VERSION=${VERSION#v}
           
           cd bin/publish
           
-          # 2. WICHTIG: Wir erstellen den "Spickzettel" (meta.json) manuell
-          # Das verhindert den "Metadata not provided" Fehler!
+          # HIER WAR DER FEHLER: "overview" hat gefehlt!
+          # Wir fügen es jetzt hinzu (einfach das gleiche wie description).
           cat <<EOF > meta.json
           {
             "name": "ABR HLS Cinema",
             "guid": "b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1",
             "version": "$VERSION",
             "description": "True ABR Streaming for Jellyfin (Netflix-Style)",
+            "overview": "True ABR Streaming for Jellyfin (Netflix-Style)",
             "owner": "${{ github.repository_owner }}",
             "category": "General",
             "targetAbi": "10.10.0.0"
           }
           EOF
           
-          # 3. Zip erstellen (inklusive der neuen meta.json)
           zip -r ../../Jellyfin.ABRHls.zip .
           
       - name: Setup JPRM
@@ -63,10 +62,7 @@ jobs:
         env:
           BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
         run: |
-          # Repo initialisieren
           jprm repo init .
-          
-          # Plugin hinzufügen
           jprm repo add . Jellyfin.ABRHls.zip --url ${BASE_URL}/Jellyfin.ABRHls.zip
           
       - name: Deploy to GitHub Pages
