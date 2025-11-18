@@ -16,15 +16,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      # --- NEUER SCHRITT ZUR FEHLERSUCHE ---
+      - name: List all files (Debug)
+        run: |
+          echo "Zeige Dateistruktur:"
+          ls -R
+      # -------------------------------------
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
       - name: Build Plugin
-        # HIER WAR DER FEHLER: Wir haben 'src/' entfernt
+        # Ich setze hier mal Platzhalter, wir schauen erst in die Logs
         run: |
-          dotnet publish Jellyfin.ABRHls.csproj --configuration Release --output bin/publish
+          # Wir probieren es mit einem Wildcard (*), das findet die Datei egal wie sie heißt!
+          dotnet publish *.csproj --configuration Release --output bin/publish
 
       - name: Create Zip
         run: |
