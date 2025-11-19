@@ -13,7 +13,7 @@
                         <h2 class="sectionTitle">ABR HLS Einstellungen</h2>
                     </div>
                     
-                    <p id="statusMsg" style="display:none; padding:10px; border-radius:4px; margin-bottom:20px;"></p>
+                    <div id="statusMsg" style="display:none; margin-bottom: 20px; padding: 1em; border-radius: 4px; color: #fff;"></div>
 
                     <form id="abrHlsConfigForm">
                         <div class="inputContainer">
@@ -25,7 +25,7 @@
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="OutputRoot">Speicherort</label>
                             <input is="emby-input" type="text" id="OutputRoot" name="OutputRoot" />
-                            <div class="fieldDescription">Ordner für die konvertierten Dateien.</div>
+                            <div class="fieldDescription">Ordner für die konvertierten Dateien (z.B. data/abrhls).</div>
                         </div>
 
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -33,7 +33,7 @@
                                 <input is="emby-checkbox" type="checkbox" id="AutoOnLibraryScan" name="AutoOnLibraryScan" />
                                 <span>Automatisch konvertieren (Auto-Scan)</span>
                             </label>
-                            <div class="fieldDescription">Startet die Konvertierung, sobald ein neuer Film erkannt wird.</div>
+                            <div class="fieldDescription">Startet die Konvertierung sofort, wenn ein neuer Film zur Bibliothek hinzugefügt wird.</div>
                         </div>
                         
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -55,40 +55,33 @@
         <script type="text/javascript">
             (function () {
                 var pluginId = 'b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1';
-                var pageId = '#abrHlsConfigPage';
 
-                function showStatus(msg, isError) {
-                    var el = document.querySelector('#statusMsg');
-                    el.textContent = msg;
-                    el.style.display = 'block';
-                    el.style.backgroundColor = isError ? '#cc3333' : '#33cc33';
-                    el.style.color = '#fff';
-                    setTimeout(() => el.style.display = 'none', 5000);
+                function showMsg(text, success) {
+                    var msg = document.querySelector('#statusMsg');
+                    msg.textContent = text;
+                    msg.style.background = success ? '#28a745' : '#dc3545';
+                    msg.style.display = 'block';
+                    setTimeout(function() { msg.style.display = 'none'; }, 3000);
                 }
 
-                document.querySelector(pageId).addEventListener('pageshow', function() {
-                    Dashboard.showLoadingMsg();
-                    
+                // Wir verzichten auf Dashboard.showLoadingMsg(), damit nichts blockiert!
+
+                document.querySelector('#abrHlsConfigPage').addEventListener('pageshow', function() {
                     var page = this;
                     
+                    // Daten laden
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         page.querySelector('#FfmpegPath').value = config.FfmpegPath || "";
                         page.querySelector('#OutputRoot').value = config.OutputRoot || "data/abrhls";
                         page.querySelector('#AutoOnLibraryScan').checked = config.AutoOnLibraryScan;
                         page.querySelector('#GenerateThumbnails').checked = config.GenerateThumbnails;
-                        
-                        // WICHTIG: Lade-Spinner entfernen!
-                        Dashboard.hideLoadingMsg();
                     }).catch(function(err) {
-                        console.error("ABR Config Load Error:", err);
-                        Dashboard.hideLoadingMsg(); // Auch bei Fehler entfernen!
-                        showStatus("Fehler beim Laden der Config: " + err, true);
+                        showMsg("Fehler beim Laden: " + err, false);
                     });
 
-                    // Event Listener für Speichern
+                    // Daten speichern
                     page.querySelector('#abrHlsConfigForm').addEventListener('submit', function (e) {
                         e.preventDefault();
-                        Dashboard.showLoadingMsg();
                         
                         ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                             config.FfmpegPath = page.querySelector('#FfmpegPath').value;
@@ -98,10 +91,7 @@
 
                             ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                                 Dashboard.processPluginConfigurationUpdateResult(result);
-                                showStatus("Einstellungen gespeichert!", false);
-                            }).catch(function(err) {
-                                Dashboard.hideLoadingMsg();
-                                showStatus("Fehler beim Speichern!", true);
+                                showMsg("Gespeichert!", true);
                             });
                         });
                     });
