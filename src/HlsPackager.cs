@@ -25,7 +25,7 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // Speichert im Unterordner 'abr_hls' neben dem Film
+        // 1. Neben dem Film speichern
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -33,7 +33,7 @@ public class HlsPackager
                 return Path.Combine(movieDir, "abr_hls", profile);
         }
         
-        // Fallback
+        // 2. Fallback auf Config
         var cfg = _plugin.Configuration;
         string rootPath = string.IsNullOrEmpty(cfg.OutputRoot) ? "data/abrhls" : cfg.OutputRoot;
         var root = Path.IsPathRooted(rootPath) ? rootPath : Path.Combine(_paths.DataPath, rootPath);
@@ -57,15 +57,16 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // Quell-Analyse
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
+            // FIX: Zugriff auf Streams
             var streams = item.GetMediaStreams();
-            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                     ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
             srcAcodec = audio?.Codec?.ToLowerInvariant();
-        } catch { }
+        } catch {}
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -77,11 +78,10 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            // KORREKTUR: L.Label statt L.Name
-            if (L.Label == "audio") {
+            if (L.Label == "audio") { // FIX: Label statt Name
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
-                varMap.Add($"a:{idx},name:{L.Label}"); // KORREKTUR hier
+                varMap.Add($"a:{idx},name:{L.Label}");
                 idx++; continue;
             }
 
@@ -100,7 +100,7 @@ public class HlsPackager
             if (srcAcodec == "eac3" && _plugin.Configuration.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
             else args += $" -c:a:{idx} aac -b:a:{idx} 128k -ac:{idx} 2";
 
-            varMap.Add($"v:{idx},a:{idx},name:{L.Label}"); // KORREKTUR hier
+            varMap.Add($"v:{idx},a:{idx},name:{L.Label}"); // FIX: Label statt Name
             idx++;
         }
 
@@ -134,7 +134,5 @@ public class HlsPackager
         return File.Exists(master);
     }
 
-    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct)
-    {
-    }
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
