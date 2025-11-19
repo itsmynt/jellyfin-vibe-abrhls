@@ -14,7 +14,6 @@ public class HlsPackager
     private readonly ILibraryManager _library;
     private readonly Plugin _plugin;
 
-    // WICHTIG: IMediaEncoder entfernt, um Startprobleme zu vermeiden
     public HlsPackager(ILogger<HlsPackager> log, IApplicationPaths paths, ILibraryManager library)
     { 
         _log = log; 
@@ -44,49 +43,112 @@ public class HlsPackager
 
     private async Task<bool> EnsurePackedAsync(Guid itemId, List<LadderProfile> ladder, string profileName, CancellationToken ct, bool fireTv, bool hdr)
     {
-        _log.LogWarning("ABR PACKAGER: Starte für Item {Id}", itemId); // Lebenszeichen
-
+        // 1. Basis-Check
         var item = _library.GetItemById(itemId) as Video;
         if (item == null || string.IsNullOrEmpty(item.Path)) 
         {
-            _log.LogWarning("ABR: Item nicht gefunden.");
+            _log.LogWarning("ABR: Item {Id} nicht gefunden.", itemId);
             return false;
         }
 
-        // FFmpeg Pfad ermitteln (Simpel)
+        // 2. FFmpeg Pfad
         var cfg = _plugin.Configuration;
         string ff = cfg.FfmpegPath;
-        if (string.IsNullOrWhiteSpace(ff)) ff = "ffmpeg"; // Standard-Befehl
+        if (string.IsNullOrWhiteSpace(ff)) ff = "ffmpeg";
 
+        _log.LogWarning("ABR DIAGNOSE: FFmpeg='{Path}' Video='{Video}'", ff, item.Path);
+
+        // 3. Ordner erstellen
         var outDir = GetOutputDir(item.Id, profileName);
-        Directory.CreateDirectory(outDir);
+        try { Directory.CreateDirectory(outDir); }
+        catch (Exception ex) {
+            _log.LogError("ABR: Ordner-Fehler {Dir}: {Ex}", outDir, ex.Message);
+            return false;
+        }
 
-        // Dateipfad sicher quoten
+        var master = Path.Combine(outDir, "master.m3u8");
+        if (File.Exists(master)) return true;
+
+        // 4. Argumente bauen (String-basiert für Windows-Sicherheit)
+        // Anführungszeichen im Pfad escapen
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
-        
-        // ... (Hier würde der restliche komplexe Code kommen, aber für den Test reicht ein einfacher Befehl)
-        // Wir machen einen "Dummy" Test, um zu sehen ob FFmpeg überhaupt startet
-        
-        // ECHTER CODE START (gekürzt für Stabilität)
         var varMap = new List<string>();
-        int aindex = 0;
-        // Wir nehmen nur das erste Profil zum Testen, um Komplexität zu reduzieren
-        if(ladder.Count > 0) {
+
+        // Nur das erste Profil für den Test nutzen
+        if (ladder.Count > 0) 
+        {
             var L = ladder[0];
             args += $" -map 0:v:0 -c:v:0 libx264 -b:v:0 {L.Bitrate} -preset ultrafast";
-            args += $" -map 0:a:0? -c:a:0 aac -b:a:0 128k";
+            args += " -map 0:a:0? -c:a:0 aac -b:a:0 128k";
             varMap.Add($"v:0,a:0,name:{L.Name}");
         }
 
-        args += $" -master_pl_name master.m3u8 -var_stream_map \"{string.Join(" ", varMap)}\" -f hls -hls_time 4 -hls_playlist_type vod -hls_segment_filename \"{Path.Combine(outDir, "%v/seg_%03d.ts")}\" \"{Path.Combine(outDir, "%v/index.m3u8")}\"";
+        // --- HIER WAR DER FEHLER: Wir teilen die Zeile auf ---
+        args += " -master_pl_name master.m3u8";
+        args += " -var_stream_map \"" + string.Join(" ", varMap) + "\"";
+        args += " -f hls -hls_time 4 -hls_playlist_type vod";
+        
+        // Pfade für Segmente und Playlists bauen
+        string segPath = Path.Combine(outDir, "%v", "seg_%03d.ts");
+        string indexPath = Path.Combine(outDir, "%v", "index.m3u8");
+        
+        args += " -hls_segment_filename \"" + segPath + "\"";
+        args += " \"" + indexPath + "\"";
+        // -----------------------------------------------------
 
-        // Unterordner erstellen
+        // Unterordner für die Streams erstellen (z.B. "1080p")
         foreach(var m in varMap)
         {
              var parts = m.Split(',');
              var namePart = parts.FirstOrDefault(p => p.StartsWith("name:"));
-             if(namePart != null) Directory.CreateDirectory(Path.Combine(outDir, namePart.Substring(5)));
+             if(namePart != null) 
+             {
+                 string subDir = Path.Combine(outDir, namePart.Substring(5));
+                 Directory.CreateDirectory(subDir);
+             }
         }
 
-        _log.LogWarning("ABR CMD: {Bin
+        _log.LogWarning("ABR CMD: {Bin} {Args}", ff, args);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = ff,
+            Arguments = args,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = outDir 
+        };
+
+        try 
+        {
+            using var p = Process.Start(psi);
+            if (p != null)
+            {
+                // Fehlerkanal lesen (FFmpeg schreibt Logs nach Stderr)
+                var errTask = p.StandardError.ReadToEndAsync(ct);
+                await p.WaitForExitAsync(ct);
+                
+                var errOutput = await errTask;
+
+                if (p.ExitCode != 0) 
+                {
+                    _log.LogError("ABR FEHLER: ExitCode {Code}. Output:\n{Err}", p.ExitCode, errOutput);
+                    return false;
+                }
+                
+                _log.LogWarning("ABR ERFOLG: Fertig!");
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogError("ABR EXCEPTION: {Ex}", ex.Message);
+            return false;
+        }
+
+        return File.Exists(master);
+    }
+    
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
+}
