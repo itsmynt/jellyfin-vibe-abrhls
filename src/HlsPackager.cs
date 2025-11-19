@@ -5,7 +5,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.MediaEncoding;
-using Jellyfin.ABRHls.Models;
+using Jellyfin.ABRHls; // WICHTIG: Hier liegen jetzt die Profile und das Plugin
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -55,25 +55,15 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // --- STABILE MEDIEN-ANALYSE (Kein Absturz mehr!) ---
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
-            
-            // Wir greifen direkt auf die Property zu, statt die Methode aufzurufen
-            // Das ist in neueren Jellyfin Versionen sicherer
-            var streams = item.GetMediaStreams(); 
-            if (streams != null)
-            {
-                var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
-                         ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
-                srcAcodec = audio?.Codec?.ToLowerInvariant();
-            }
-        } catch (Exception ex) {
-            _log.LogWarning("ABR: Medieninfo-Fehler (Ignoriert): {Ex}", ex.Message);
-        }
-        // ---------------------------------------------------
+            var streams = item.GetMediaStreams();
+            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                     ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+            srcAcodec = audio?.Codec?.ToLowerInvariant();
+        } catch { }
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
