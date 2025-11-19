@@ -22,9 +22,10 @@ public class LibraryWatcher : BackgroundService
 
     private void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
+        // Nur Videos verarbeiten
         if (e.Item is Video video && !video.IsVirtualItem)
         {
-            // Wir nutzen Task.Run, um den Event-Handler nicht zu blockieren
+            // Task starten, um Event-Loop nicht zu blockieren
             _ = Task.Run(async () => 
             {
                 try 
@@ -34,14 +35,12 @@ public class LibraryWatcher : BackgroundService
 
                     if (auto)
                     {
-                        // Hier rufen wir den Packager auf. Wenn der crasht, fangen wir es jetzt ab.
                         await _pack.EnsurePackedAsync(video.Id);
                     }
                 }
                 catch (Exception ex)
                 {
-                    // DIESE Zeile wird uns retten!
-                    _log.LogError("ABR WATCHER CRASH: Fehler beim Starten des Packagers: {Ex}", ex);
+                    _log.LogError("ABR WATCHER ERROR: Fehler beim Starten für {Item}: {Ex}", video.Name, ex);
                 }
             });
         }
