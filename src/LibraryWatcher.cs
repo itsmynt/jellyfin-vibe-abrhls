@@ -1,7 +1,7 @@
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using MediaBrowser.Controller.Entities; // Wichtig für die Typen
+using MediaBrowser.Controller.Entities;
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -14,22 +14,26 @@ public class LibraryWatcher : BackgroundService
 
     public LibraryWatcher(ILogger<LibraryWatcher> log, ILibraryManager lib, HlsPackager pack)
     {
-        _log = log; _lib = lib; _pack = pack; _plugin = (Plugin)Plugin.Instance!;
+        _log = log; _lib = lib; _pack = pack; 
+        _plugin = Plugin.Instance!; // Nutzung der statischen Instanz
+        
         _lib.ItemAdded += OnItemAdded;
-        // Updated Event entfernen wir erstmal zur Sicherheit, das verursacht oft Endlosschleifen
-        // _lib.ItemUpdated += OnItemChanged; 
+        // Optional: Auch bei Updates reagieren (kann aber Endlosschleifen erzeugen)
+        // _lib.ItemUpdated += OnItemUpdated; 
     }
 
     private void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        // Nur wenn Auto-Scan an ist UND es ein Video ist
-        if (!_plugin.Configuration.AutoOnLibraryScan) return;
-
+        // DIAGNOSE: Zeige IMMER, dass ein Item gefunden wurde
         if (e.Item is Video video && !video.IsVirtualItem)
         {
-            _log.LogInformation("Neues Video entdeckt: {Title}. Starte ABR Generierung...", video.Name);
-            // Task.Run damit der Library Scan nicht blockiert wird
-            _ = Task.Run(() => _pack.EnsurePackedAsync(video.Id));
+            bool auto = _plugin.Configuration.AutoOnLibraryScan;
+            _log.LogWarning("ABR WATCHER: Neues Video '{Name}' (ID: {Id}). AutoScan ist: {Status}", video.Name, video.Id, auto);
+
+            if (auto)
+            {
+                _ = Task.Run(() => _pack.EnsurePackedAsync(video.Id));
+            }
         }
     }
 
