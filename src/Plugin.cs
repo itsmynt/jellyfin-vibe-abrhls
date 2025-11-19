@@ -20,7 +20,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        // Diese Namen müssen exakt mit den LogicalNames in der .csproj übereinstimmen
+        // Namen müssen exakt zur .csproj passen
         yield return new PluginPageInfo 
         { 
             Name = "abr-player.html", 
