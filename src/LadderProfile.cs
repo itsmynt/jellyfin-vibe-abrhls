@@ -1,13 +1,11 @@
+using System.Xml.Serialization; // Wichtig für das Attribut
+
 namespace Jellyfin.ABRHls;
 
 public class LadderProfile
 {
-    // 1. Der leere Konstruktor (WICHTIG für Jellyfin/XML!)
-    public LadderProfile() 
-    {
-    }
+    public LadderProfile() {}
 
-    // 2. Der Konstruktor zum einfachen Erstellen im Code
     public LadderProfile(string name, int width, int height, long minBitrate, long targetBitrate, long maxBitrate, string videoCodec, string audioCodec, long audioBitrate, bool useOriginalResolution = false, bool copyVideo = false)
     {
         Name = name;
@@ -35,8 +33,13 @@ public class LadderProfile
     public bool UseOriginalResolution { get; set; }
     public bool CopyVideo { get; set; }
 
-    // Helper-Eigenschaften für den Packager (Read-only)
+    // FIX: XmlIgnore verhindert, dass der Serializer hier abstürzt
+    [XmlIgnore]
     public long Bitrate => TargetBitrate;
+    
+    [XmlIgnore]
     public long Maxrate => MaxBitrate;
+    
+    [XmlIgnore]
     public long Bufsize => MaxBitrate * 2;
 }
