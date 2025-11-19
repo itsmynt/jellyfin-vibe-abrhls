@@ -27,7 +27,7 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // Versuch 1: Speichere direkt neben dem Film
+        // 1. Priorität: Speichere direkt neben dem Film
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -37,7 +37,7 @@ public class HlsPackager
             }
         }
 
-        // Versuch 2 (Fallback): Zentraler Speicherort
+        // 2. Fallback
         var cfg = _plugin.Configuration;
         string rootPath = "data/abrhls";
         if (!string.IsNullOrEmpty(cfg.OutputRoot)) rootPath = cfg.OutputRoot;
@@ -71,46 +71,45 @@ public class HlsPackager
         var master = Path.Combine(outDir, "master.m3u8");
         if (File.Exists(master)) return true;
 
-        // FFmpeg Pfad
-        var cfg = _plugin.Configuration;
-        string ff = cfg.FfmpegPath;
+        string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = "ffmpeg";
 
-        // Medien-Analyse für Filterung
+        // --- FIX: Jellyfin 10.10 Height/Width sind int, nicht int? ---
         int srcHeight = 1080;
         string? srcAcodec = null;
 
         try {
-            if (item.Height.HasValue && item.Height > 0) srcHeight = item.Height.Value;
+            // Einfacher Check auf > 0 statt .HasValue
+            if (item.Height > 0) srcHeight = item.Height;
+            
             var streams = item.GetMediaStreams();
             var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
                      ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
             srcAcodec = audio?.Codec?.ToLowerInvariant();
         } catch {}
+        // -----------------------------------------------------------
 
-        // Befehl bauen
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
         var varMap = new List<string>();
-        var seg = Math.Clamp(cfg.SegmentDurationSeconds, 2, 6);
+        var seg = Math.Clamp(_plugin.Configuration.SegmentDurationSeconds, 2, 6);
 
         int idx = 0;
         for (int i = 0; i < ladder.Count; i++)
         {
             var L = ladder[i];
             
-            // Audio Only
             if (L.Name == "audio")
             {
-                if (!cfg.AddStereoAacFallback) continue;
+                if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} {Math.Max(96000, L.AudioBitrate)} -vn:{idx}";
                 varMap.Add($"a:{idx},name:{L.Name}");
                 idx++;
                 continue;
             }
 
-            // Filter: Überspringen wenn Profil > Original
+            // Filterung: Überspringen wenn Profil größer als Original
             if (!L.UseOriginalResolution && !L.CopyVideo)
             {
                 if (L.Height > srcHeight) continue;
@@ -132,7 +131,7 @@ public class HlsPackager
                     args += $" -vf:{idx} \"scale=w={L.Width}:h={L.Height}:force_original_aspect_ratio=decrease\"";
             }
 
-            if (srcAcodec == "eac3" && cfg.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
+            if (srcAcodec == "eac3" && _plugin.Configuration.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
             else args += $" -c:a:{idx} aac -b:a:{idx} 128k -ac:{idx} 2";
 
             varMap.Add($"v:{idx},a:{idx},name:{L.Name}");
@@ -141,10 +140,10 @@ public class HlsPackager
 
         if (idx == 0) return false;
 
-        string segType = cfg.UseFmp4 ? "-hls_segment_type fmp4" : "";
+        string segType = _plugin.Configuration.UseFmp4 ? "-hls_segment_type fmp4" : "";
         args += $" -master_pl_name master.m3u8 -var_stream_map \"{string.Join(" ", varMap)}\" {segType} -f hls -hls_time {seg} -hls_playlist_type vod";
         
-        string ext = cfg.UseFmp4 ? "m4s" : "ts";
+        string ext = _plugin.Configuration.UseFmp4 ? "m4s" : "ts";
         args += $" -hls_segment_filename \"{Path.Combine(outDir, "%v", $"seg_%06d.{ext}")}\" \"{Path.Combine(outDir, "%v", "index.m3u8")}\"";
 
         foreach(var m in varMap)
@@ -180,6 +179,7 @@ public class HlsPackager
         catch (Exception ex)
         {
             _log.LogError("ABR CRASH: {Ex}", ex);
+            return false;
         }
 
         return File.Exists(master);
