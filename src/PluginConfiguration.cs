@@ -1,45 +1,30 @@
 using MediaBrowser.Model.Plugins;
+using Jellyfin.ABRHls.Models;
 
 namespace Jellyfin.ABRHls;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
-    public string FfmpegPath { get; set; } = ""; 
+    public string FfmpegPath { get; set; } = "";
     public string OutputRoot { get; set; } = "data/abrhls";
     public int SegmentDurationSeconds { get; set; } = 4;
     public bool UseFmp4 { get; set; } = true;
-    public bool AutoOnLibraryScan { get; set; } = false; 
+    public bool AutoOnLibraryScan { get; set; } = true;
 
     public List<LadderProfile> Ladder { get; set; } = new()
     {
-        // FIX: "useOriginalResolution" (kleines u), passt jetzt zum Konstruktor
         new("source", 0, 0, 12_000_000, 16_000_000, 32_000_000, "libx264", "aac", 192_000, useOriginalResolution:true),
         new("1080p", 1920, 1080, 6_000_000, 6_400_000, 12_000_000, "libx264", "aac", 128_000),
         new("720p", 1280, 720, 3_000_000, 3_200_000, 6_000_000, "libx264", "aac", 128_000),
-        new("480p", 854, 480, 1_500_000, 1_800_000, 3_000_000, "libx264", "aac", 128_000)
+        new("480p", 848, 480, 1_500_000, 2_000_000, 4_000_000, "libx264", "aac", 128_000),
+        new("360p", 640, 360, 800_000, 900_000, 1_600_000, "libx264", "aac", 96_000)
     };
+
+    // Platzhalter für FireTV Profile
+    public List<LadderProfile> FireTvUhdSdr { get; set; } = new();
+    public List<LadderProfile> FireTvUhdHdr { get; set; } = new();
     
-    public List<LadderProfile> FireTvUhdSdr { get; set; } = new()
-    {
-        new("2160p", 3840, 2160, 12_000_000, 14_000_000, 28_000_000, "hevc", "eac3", 640_000),
-        new("1080p", 1920, 1080, 5_000_000, 6_000_000, 12_000_000, "hevc", "eac3", 448_000),
-        new("720p", 1280, 720, 2_500_000, 3_000_000, 6_000_000, "hevc", "eac3", 320_000),
-        // FIX: Auch hier "useOriginalResolution"
-        new("audio", 0, 0, 96_000, 128_000, 256_000, "", "aac", 96_000, useOriginalResolution:true)
-    };
-
-    public List<LadderProfile> FireTvUhdHdr { get; set; } = new()
-    {
-        new("2160p", 3840, 2160, 15_000_000, 18_000_000, 35_000_000, "hevc", "eac3", 640_000),
-        new("1080p", 1920, 1080, 6_000_000, 7_000_000, 14_000_000, "hevc", "eac3", 448_000),
-        // FIX: Auch hier "useOriginalResolution"
-        new("audio", 0, 0, 96_000, 128_000, 256_000, "", "aac", 96_000, useOriginalResolution:true)
-    };
-
-    public bool EnableFireTvEndpoint { get; set; } = true;
     public bool KeepEac3IfPresent { get; set; } = true;
-    public bool TranscodeDtsToAc3 { get; set; } = true;
-    public bool TranscodeTrueHdToEac3 { get; set; } = true;
     public bool AddStereoAacFallback { get; set; } = true;
     public bool GenerateThumbnails { get; set; } = true;
     public int ThumbnailIntervalSeconds { get; set; } = 10;
