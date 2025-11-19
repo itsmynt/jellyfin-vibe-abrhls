@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ABR Cinema Config</title>
+</head>
+<body>
+    <div data-role="page" class="type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="abrConfigForm">
+                    
+                    <div class="verticalSection">
+                        <div class="sectionTitleContainer flex align-items-center">
+                            <h2 class="sectionTitle">ABR HLS Einstellungen</h2>
+                        </div>
+                        
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="FfmpegPath">FFmpeg Pfad</label>
+                            <input is="emby-input" type="text" id="FfmpegPath" name="FfmpegPath" />
+                            <div class="fieldDescription">Leer lassen, um den Standard von Jellyfin zu nutzen.</div>
+                        </div>
+
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="OutputRoot">Speicherort (Output Root)</label>
+                            <input is="emby-input" type="text" id="OutputRoot" name="OutputRoot" />
+                            <div class="fieldDescription">Standard: data/abrhls</div>
+                        </div>
+
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input is="emby-checkbox" type="checkbox" id="AutoOnLibraryScan" name="AutoOnLibraryScan" />
+                                <span>Automatisch konvertieren bei Bibliotheks-Scan</span>
+                            </label>
+                            <div class="fieldDescription">ACHTUNG: Wenn aktiv, werden neue Filme sofort konvertiert. Hohe CPU-Last!</div>
+                        </div>
+                        
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label>
+                                <input is="emby-checkbox" type="checkbox" id="GenerateThumbnails" name="GenerateThumbnails" />
+                                <span>Vorschaubilder (Thumbnails) generieren</span>
+                            </label>
+                        </div>
+
+                        <br />
+                        <button is="emby-button" type="submit" class="raised button-submit block">
+                            <span>Speichern</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            var AbrHlsConfig = {
+                pluginId: 'b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1', // Muss mit der ID in Plugin.cs übereinstimmen
+
+                load: function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(AbrHlsConfig.pluginId).then(function (config) {
+                        document.querySelector('#FfmpegPath').value = config.FfmpegPath || "";
+                        document.querySelector('#OutputRoot').value = config.OutputRoot || "data/abrhls";
+                        document.querySelector('#AutoOnLibraryScan').checked = config.AutoOnLibraryScan;
+                        document.querySelector('#GenerateThumbnails').checked = config.GenerateThumbnails;
+                        Dashboard.hideLoadingMsg();
+                    });
+                },
+
+                save: function () {
+                    Dashboard.showLoadingMsg();
+                    ApiClient.getPluginConfiguration(AbrHlsConfig.pluginId).then(function (config) {
+                        config.FfmpegPath = document.querySelector('#FfmpegPath').value;
+                        config.OutputRoot = document.querySelector('#OutputRoot').value;
+                        config.AutoOnLibraryScan = document.querySelector('#AutoOnLibraryScan').checked;
+                        config.GenerateThumbnails = document.querySelector('#GenerateThumbnails').checked;
+
+                        ApiClient.updatePluginConfiguration(AbrHlsConfig.pluginId, config).then(function (result) {
+                            Dashboard.processPluginConfigurationUpdateResult(result);
+                        });
+                    });
+                    return false; // Verhindert normalen Submit
+                }
+            };
+
+            document.querySelector('#abrConfigForm').addEventListener('submit', AbrHlsConfig.save);
+            
+            // Starten beim Laden der Seite
+            if (document.querySelector('#abrConfigForm')) {
+                AbrHlsConfig.load();
+            }
+        </script>
+    </div>
+</body>
+</html>
