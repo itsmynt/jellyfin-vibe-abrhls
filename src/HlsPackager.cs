@@ -5,6 +5,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.MediaEncoding;
+using Jellyfin.ABRHls; // Namespace für LadderProfile und Plugin
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -27,7 +28,7 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // Neben dem Film speichern
+        // 1. Versuch: Neben dem Film speichern
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -35,7 +36,7 @@ public class HlsPackager
                 return Path.Combine(movieDir, "abr_hls", profile);
         }
         
-        // Fallback
+        // 2. Fallback: Config
         var cfg = _plugin.Configuration;
         string rootPath = string.IsNullOrEmpty(cfg.OutputRoot) ? "data/abrhls" : cfg.OutputRoot;
         var root = Path.IsPathRooted(rootPath) ? rootPath : Path.Combine(_paths.DataPath, rootPath);
@@ -59,25 +60,20 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // --- ABSTURZ-FIX ---
-        // Wir nutzen item.MediaStreams direkt statt der Extension-Methode, die fehlt
+        // Medien-Analyse
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
             
-            // Direkter Property Zugriff ist Versions-sicherer
-            var streams = item.MediaStreams; 
-            if (streams != null)
-            {
-                var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
-                         ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
-                srcAcodec = audio?.Codec?.ToLowerInvariant();
-            }
+            // FIX: Methode statt Property nutzen
+            var streams = item.GetMediaStreams();
+            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                     ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+            srcAcodec = audio?.Codec?.ToLowerInvariant();
         } catch (Exception ex) {
             _log.LogWarning("ABR: Medieninfo-Fehler (Ignoriert): {Ex}", ex.Message);
         }
-        // -------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -89,6 +85,7 @@ public class HlsPackager
         {
             var L = ladder[i];
             
+            // FIX: L.Label nutzen
             if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
@@ -96,6 +93,7 @@ public class HlsPackager
                 idx++; continue;
             }
 
+            // Filter: Überspringen wenn Profil > Original
             if (!L.UseOriginalResolution && !L.CopyVideo && L.Height > srcHeight) continue;
 
             args += " -map 0:v:0 -map 0:a:0?";
@@ -143,6 +141,4 @@ public class HlsPackager
 
         return File.Exists(master);
     }
-
-    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
