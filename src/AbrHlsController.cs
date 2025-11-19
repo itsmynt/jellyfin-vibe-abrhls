@@ -28,13 +28,13 @@ public class AbrHlsController : ControllerBase
     }
 
     [HttpGet("levels/{itemId}")]
-    public ActionResult<object> GetQualityLevels([FromRoute] Guid itemId)
+    public ActionResult<AbrInfoResponse> GetQualityLevels([FromRoute] Guid itemId)
     {
         var item = _libraryManager.GetItemById(itemId);
         if (item is not Video) return NotFound("Video nicht gefunden");
 
         var outputDir = _packager.GetOutputDir(item, "default");
-        var levels = new List<object>();
+        var levels = new List<QualityLevelInfo>();
 
         if (Directory.Exists(outputDir))
         {
@@ -42,11 +42,11 @@ public class AbrHlsController : ControllerBase
             {
                 foreach (var profile in Plugin.Instance.Configuration.Ladder)
                 {
-                    levels.Add(new { Label = profile.Label, Bitrate = profile.TargetBitrate });
+                    levels.Add(new QualityLevelInfo { Label = profile.Label, Bitrate = profile.TargetBitrate });
                 }
             }
         }
-        return Ok(new { Available = levels.Any(), Levels = levels });
+        return Ok(new AbrInfoResponse { Available = levels.Any(), Levels = levels });
     }
 
     [HttpGet("stream/{itemId}/{*playlist}")]
@@ -63,4 +63,19 @@ public class AbrHlsController : ControllerBase
         var contentType = playlist.EndsWith(".m3u8") ? "application/vnd.apple.mpegurl" : "video/mp4";
         return PhysicalFile(filePath, contentType);
     }
+}
+
+public class AbrInfoResponse
+{
+    public bool Available { get; set; }
+    public List<QualityLevelInfo> Levels { get; set; } = new();
+}
+
+public class QualityLevelInfo
+{
+    public string Label { get; set; } = "";
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public long Bitrate { get; set; }
+    public string Path { get; set; } = "";
 }
