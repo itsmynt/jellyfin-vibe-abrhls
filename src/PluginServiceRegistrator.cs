@@ -9,10 +9,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        // WICHTIG: Wir registrieren den Packager und den Watcher
+        // Wir registrieren alles sauber für Dependency Injection
         serviceCollection.AddSingleton<HlsPackager>();
-        
-        // Der Watcher ist ein Hosted Service (läuft im Hintergrund)
         serviceCollection.AddHostedService<LibraryWatcher>();
     }
 }
