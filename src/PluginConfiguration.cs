@@ -1,5 +1,4 @@
 using MediaBrowser.Model.Plugins;
-using Jellyfin.ABRHls.Models;
 
 namespace Jellyfin.ABRHls;
 
@@ -16,11 +15,9 @@ public class PluginConfiguration : BasePluginConfiguration
         new("source", 0, 0, 12_000_000, 16_000_000, 32_000_000, "libx264", "aac", 192_000, useOriginalResolution:true),
         new("1080p", 1920, 1080, 6_000_000, 6_400_000, 12_000_000, "libx264", "aac", 128_000),
         new("720p", 1280, 720, 3_000_000, 3_200_000, 6_000_000, "libx264", "aac", 128_000),
-        new("480p", 848, 480, 1_500_000, 2_000_000, 4_000_000, "libx264", "aac", 128_000),
-        new("360p", 640, 360, 800_000, 900_000, 1_600_000, "libx264", "aac", 96_000)
+        new("480p", 848, 480, 1_500_000, 2_000_000, 4_000_000, "libx264", "aac", 128_000)
     };
 
-    // Platzhalter für FireTV Profile
     public List<LadderProfile> FireTvUhdSdr { get; set; } = new();
     public List<LadderProfile> FireTvUhdHdr { get; set; } = new();
     
