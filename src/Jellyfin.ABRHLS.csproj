@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Jellyfin.ABRHls</RootNamespace>
     <AssemblyName>Jellyfin.ABRHls</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>2.2.2</Version>
     <Authors>DeinName</Authors>
     <Description>Native ABR HLS Streaming for Jellyfin</Description>
     
