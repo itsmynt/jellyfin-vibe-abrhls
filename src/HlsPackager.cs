@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection; // Wichtig für den Fix
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -15,21 +16,14 @@ public class HlsPackager
     private readonly IApplicationPaths _paths;
     private readonly ILibraryManager _library;
     private readonly IMediaEncoder _mediaEncoder;
-    private readonly IMediaSourceManager _mediaSourceManager; // Neu für 10.11
     private readonly Plugin _plugin;
 
-    public HlsPackager(
-        ILogger<HlsPackager> log, 
-        IApplicationPaths paths, 
-        ILibraryManager library, 
-        IMediaEncoder mediaEncoder,
-        IMediaSourceManager mediaSourceManager)
+    public HlsPackager(ILogger<HlsPackager> log, IApplicationPaths paths, ILibraryManager library, IMediaEncoder mediaEncoder)
     { 
         _log = log; 
         _paths = paths; 
         _library = library; 
         _mediaEncoder = mediaEncoder;
-        _mediaSourceManager = mediaSourceManager;
         _plugin = Plugin.Instance!; 
     }
 
@@ -65,29 +59,30 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // --- 10.11 KOMPATIBLE ANALYSE ---
+        // --- SAFE MODE: Streams holen ---
         int srcHeight = 1080;
         string? srcAcodec = null;
 
-        try {
-            if (item.Height > 0) srcHeight = item.Height;
-
-            // Der sichere Weg in 10.11: MediaSourceManager nutzen
-            var mediaSources = await _mediaSourceManager.GetMediaSources(new MediaSourceInfoQuery { ItemId = itemId }, ct);
-            var mainSource = mediaSources.FirstOrDefault();
-
-            if (mainSource != null && mainSource.MediaStreams != null)
+        try 
+        {
+            // 1. Höhe sicher lesen (Property existiert immer)
+            if (item.Height > 0) srcHeight = item.Height; // In 10.9 ist es int, in manchen Versionen int? - C# regelt das oft implizit, sonst casten.
+            
+            // 2. Streams sicher lesen (Der Crash-Fix)
+            var streams = GetMediaStreamsSafe(item);
+            
+            if (streams != null)
             {
-                var audio = mainSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
-                         ?? mainSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+                var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                         ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
                 srcAcodec = audio?.Codec?.ToLowerInvariant();
             }
         } 
         catch (Exception ex) 
         {
-            _log.LogWarning("ABR: Warnung bei Medienanalyse: {Ex}", ex.Message);
+            _log.LogWarning("ABR: Medieninfo-Warnung: {Ex}", ex.Message);
         }
-        // -------------------------------
+        // --------------------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -106,6 +101,7 @@ public class HlsPackager
                 idx++; continue;
             }
 
+            // Filter
             if (!L.UseOriginalResolution && !L.CopyVideo && L.Height > srcHeight) continue;
 
             args += " -map 0:v:0 -map 0:a:0?";
@@ -137,15 +133,7 @@ public class HlsPackager
              if(n != null) Directory.CreateDirectory(Path.Combine(outDir, n));
         }
 
-        var psi = new ProcessStartInfo 
-        { 
-            FileName = ff, 
-            Arguments = args, 
-            RedirectStandardError = true, 
-            UseShellExecute = false, 
-            CreateNoWindow = true, 
-            WorkingDirectory = outDir 
-        };
+        var psi = new ProcessStartInfo { FileName = ff, Arguments = args, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = outDir };
         
         _log.LogWarning("ABR START: {Item} -> {Dir}", item.Name, outDir);
         
@@ -154,15 +142,29 @@ public class HlsPackager
             if (p != null) {
                 var err = await p.StandardError.ReadToEndAsync(ct);
                 await p.WaitForExitAsync(ct);
-                if (p.ExitCode != 0) { 
-                    _log.LogError("ABR FEHLER {Code}:\n{Err}", p.ExitCode, err); 
-                    return false; 
-                }
+                if (p.ExitCode != 0) { _log.LogError("ABR FEHLER {Code}:\n{Err}", p.ExitCode, err); return false; }
                 _log.LogWarning("ABR FERTIG: {Item}", item.Name);
             }
         } catch (Exception ex) { _log.LogError("ABR CRASH: {Ex}", ex); return false; }
 
         return File.Exists(master);
+    }
+
+    // --- HELPER: Reflection für Kompatibilität ---
+    private List<MediaStream>? GetMediaStreamsSafe(BaseItem item)
+    {
+        try 
+        {
+            // Versuch 1: Property "MediaStreams" (Jellyfin 10.10/10.11)
+            var prop = item.GetType().GetProperty("MediaStreams");
+            if (prop != null) return prop.GetValue(item) as List<MediaStream>;
+
+            // Versuch 2: Methode "GetMediaStreams" (Jellyfin 10.8/10.9)
+            var method = item.GetType().GetMethod("GetMediaStreams");
+            if (method != null) return method.Invoke(item, null) as List<MediaStream>;
+        }
+        catch { /* Ignorieren */ }
+        return null;
     }
 
     private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
