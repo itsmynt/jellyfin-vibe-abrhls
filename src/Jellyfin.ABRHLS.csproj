@@ -25,7 +25,11 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <ItemGroup>
+ <ItemGroup>
+    <EmbeddedResource Include="Configuration\configPage.html">
+      <LogicalName>Jellyfin.ABRHls.Configuration.configPage.html</LogicalName>
+    </EmbeddedResource>
+
     <EmbeddedResource Include="web\abr-player.html">
       <LogicalName>Jellyfin.ABRHls.web.abr-player.html</LogicalName>
     </EmbeddedResource>
