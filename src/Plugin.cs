@@ -21,12 +21,21 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public IEnumerable<PluginPageInfo> GetPages()
     {
+        // 1. Die Konfigurationsseite (NEU)
+        yield return new PluginPageInfo
+        {
+            Name = Name, // Zeigt den Plugin-Namen im Menü als Link
+            EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
+        };
+
+        // 2. Der Player HTML
         yield return new PluginPageInfo 
         { 
             Name = "abr-player.html", 
             EmbeddedResourcePath = GetType().Namespace + ".web.abr-player.html" 
         };
         
+        // 3. Der Player JS
         yield return new PluginPageInfo 
         { 
             Name = "abr-player.js", 
@@ -34,3 +43,4 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
         };
     }
 }
+
