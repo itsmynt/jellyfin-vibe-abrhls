@@ -2,7 +2,6 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
-using Jellyfin.ABRHls.Services;
 
 namespace Jellyfin.ABRHls;
 
@@ -20,8 +19,9 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        yield return new PluginPageInfo { Name = "abr-player.html", EmbeddedResourcePath = GetType().Namespace + ".web.abr-player.html" };
-        yield return new PluginPageInfo { Name = "abr-player.js", EmbeddedResourcePath = GetType().Namespace + ".web.abr-player.js" };
-        yield return new PluginPageInfo { Name = "configPage.html", EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html" };
+        // Hier nutzen wir nun harte Strings, die exakt zur .csproj passen
+        yield return new PluginPageInfo { Name = "abr-player.html", EmbeddedResourcePath = "Jellyfin.ABRHls.web.abr-player.html" };
+        yield return new PluginPageInfo { Name = "abr-player.js", EmbeddedResourcePath = "Jellyfin.ABRHls.web.abr-player.js" };
+        yield return new PluginPageInfo { Name = "configPage.html", EmbeddedResourcePath = "Jellyfin.ABRHls.Configuration.configPage.html" };
     }
 }
