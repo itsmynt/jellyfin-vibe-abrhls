@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Jellyfin.ABRHls</RootNamespace>
     <AssemblyName>Jellyfin.ABRHls</AssemblyName>
-    <Version>2.9.5</Version>
+    <Version>3.0.0</Version>
     <LangVersion>12.0</LangVersion>
   </PropertyGroup>
 
@@ -20,7 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="web\**" />
-    <EmbeddedResource Include="Configuration\**" />
+    <EmbeddedResource Include="web\abr-player.html" LogicalName="Jellyfin.ABRHls.web.abr-player.html" />
+    <EmbeddedResource Include="web\abr-player.js" LogicalName="Jellyfin.ABRHls.web.abr-player.js" />
+    <EmbeddedResource Include="Configuration\configPage.html" LogicalName="Jellyfin.ABRHls.Configuration.configPage.html" />
   </ItemGroup>
 </Project>
