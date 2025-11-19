@@ -8,12 +8,12 @@
         "category": "General",
         "versions": [
             {
-                "version": "0.0.0.7.0.5",
-                "changelog": "Update to version 0.0.0.7.0.5",
+                "version": "0.0.0.7.0.6",
+                "changelog": "Update to version 0.0.0.7.0.6",
                 "targetAbi": "10.10.0.0",
-                "sourceUrl": "https://itsmynt.github.io/jellyfin-vibe-abrhls/Jellyfin.ABRHls.zip/abr-hls-cinema/abr-hls-cinema_0.0.0.7.0.5.zip",
-                "checksum": "87e61e973d274966c3beb4d3ba282a68",
-                "timestamp": "2025-11-19T01:16:04Z"
+                "sourceUrl": "https://itsmynt.github.io/jellyfin-vibe-abrhls/Jellyfin.ABRHls.zip/abr-hls-cinema/abr-hls-cinema_0.0.0.7.0.6.zip",
+                "checksum": "26cbf2474cd1d1805dbbcb4ff8831f7e",
+                "timestamp": "2025-11-19T09:13:22Z"
             }
         ]
     }
