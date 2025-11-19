@@ -77,10 +77,11 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            if (L.Name == "audio") {
+            // KORREKTUR: L.Label statt L.Name
+            if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
-                varMap.Add($"a:{idx},name:{L.Name}");
+                varMap.Add($"a:{idx},name:{L.Label}"); // KORREKTUR hier
                 idx++; continue;
             }
 
@@ -99,7 +100,7 @@ public class HlsPackager
             if (srcAcodec == "eac3" && _plugin.Configuration.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
             else args += $" -c:a:{idx} aac -b:a:{idx} 128k -ac:{idx} 2";
 
-            varMap.Add($"v:{idx},a:{idx},name:{L.Name}");
+            varMap.Add($"v:{idx},a:{idx},name:{L.Label}"); // KORREKTUR hier
             idx++;
         }
 
@@ -131,5 +132,9 @@ public class HlsPackager
         } catch (Exception ex) { _log.LogError("ABR CRASH: {Ex}", ex); return false; }
 
         return File.Exists(master);
+    }
+
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct)
+    {
     }
 }
