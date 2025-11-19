@@ -38,7 +38,7 @@ public class HlsPackager
             }
         }
 
-        // 2. Fallback: Zentraler Speicherort aus Config oder Data-Ordner
+        // 2. Fallback: Zentraler Speicherort aus Config
         var cfg = _plugin.Configuration;
         string rootPath = "data/abrhls";
         if (!string.IsNullOrEmpty(cfg.OutputRoot)) rootPath = cfg.OutputRoot;
@@ -58,20 +58,19 @@ public class HlsPackager
 
     private async Task<bool> EnsurePackedAsync(Guid itemId, List<LadderProfile> ladder, string profileName, CancellationToken ct, bool fireTv, bool hdr)
     {
-        // Item laden und prüfen
+        // Item laden und sicherstellen, dass es ein Video ist
         var baseItem = _library.GetItemById(itemId);
         if (baseItem is not Video item || string.IsNullOrEmpty(item.Path)) 
         {
-            _log.LogWarning("ABR: Item {Id} ist kein Video oder hat keinen Pfad.", itemId);
+            // Kein Log mehr bei jedem Aufruf, nur bei echten Fehlern oder Start
             return false;
         }
 
-        // Zielordner
         var outDir = GetOutputDir(item, profileName);
         
         try { Directory.CreateDirectory(outDir); }
         catch (Exception ex) {
-            _log.LogError("ABR: Konnte Ordner {Dir} nicht erstellen: {Ex}", outDir, ex.Message);
+            _log.LogError("ABR: Ordnerfehler {Dir}: {Ex}", outDir, ex.Message);
             return false;
         }
 
@@ -84,24 +83,22 @@ public class HlsPackager
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath; 
         if (string.IsNullOrWhiteSpace(ff)) ff = "ffmpeg";
 
-        // Medien-Analyse (Auflösung & Audio)
+        // Medien-Analyse
         int srcHeight = 1080;
         string? srcAcodec = null;
 
         try {
             if (item.Height.HasValue && item.Height > 0) srcHeight = item.Height.Value;
             
-            // Sicherer Zugriff auf Streams
             var streams = item.GetMediaStreams();
             var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
                      ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
             srcAcodec = audio?.Codec?.ToLowerInvariant();
         } catch (Exception ex) {
-            _log.LogWarning("ABR: Konnte Medieninfos nicht lesen, nutze Standards. {Ex}", ex.Message);
+            _log.LogWarning("ABR: Konnte Medieninfos nicht lesen (nutze Standards): {Ex}", ex.Message);
         }
 
-        // Argumente bauen
-        // WICHTIG: Pfade für Windows in Anführungszeichen!
+        // Argumente bauen (mit Quotes für Windows Pfade)
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
         var varMap = new List<string>();
@@ -146,7 +143,7 @@ public class HlsPackager
                     args += $" -vf:{outputIndex} \"scale=w={L.Width}:h={L.Height}:force_original_aspect_ratio=decrease\"";
             }
 
-            // Audio Codec
+            // Audio Codec für Video-Stream
             if (srcAcodec == "eac3" && cfg.KeepEac3IfPresent) args += $" -c:a:{outputIndex} copy";
             else args += $" -c:a:{outputIndex} aac -b:a:{outputIndex} 128k -ac:{outputIndex} 2";
 
@@ -155,24 +152,24 @@ public class HlsPackager
         }
 
         if (outputIndex == 0) {
-            _log.LogWarning("ABR: Keine Profile übrig (Videoauflösung zu niedrig?).");
+            _log.LogWarning("ABR: Keine Profile übrig für {Item} (Auflösung zu niedrig?)", item.Name);
             return false;
         }
 
-        // HLS Master Playlist
+        // HLS Settings
         string segType = cfg.UseFmp4 ? "-hls_segment_type fmp4" : "";
         args += " -master_pl_name master.m3u8";
         args += " -var_stream_map \"" + string.Join(" ", varMap) + "\"";
         args += $" {segType} -f hls -hls_time {seg} -hls_playlist_type vod";
         
-        // Dateinamen (mit Quotes!)
+        // Dateinamen (Quotes!)
         string segExt = cfg.UseFmp4 ? "m4s" : "ts";
         string segPattern = Path.Combine(outDir, "%v", $"seg_%06d.{segExt}");
         string idxPattern = Path.Combine(outDir, "%v", "index.m3u8");
         
         args += $" -hls_segment_filename \"{segPattern}\" \"{idxPattern}\"";
 
-        // Unterordner anlegen
+        // Unterordner erstellen
         foreach(var m in varMap)
         {
              var parts = m.Split(',');
@@ -180,7 +177,6 @@ public class HlsPackager
              if(namePart != null) Directory.CreateDirectory(Path.Combine(outDir, namePart.Substring(5)));
         }
 
-        // Prozess starten
         var psi = new ProcessStartInfo
         {
             FileName = ff,
@@ -206,7 +202,7 @@ public class HlsPackager
                     _log.LogError("ABR FEHLER {Code}:\n{Err}", p.ExitCode, errOutput);
                     return false;
                 }
-                _log.LogWarning("ABR ERFOLG: {Item}", item.Name);
+                _log.LogWarning("ABR FERTIG: {Item}", item.Name);
             }
         }
         catch (Exception ex)
@@ -223,6 +219,6 @@ public class HlsPackager
 
     private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct)
     {
-        // Optional: Thumbnail Logik hier einfügen (ebenfalls mit Quotes bei Pfaden!)
+        // Thumbnail-Implementierung bei Bedarf hier einfügen
     }
 }
