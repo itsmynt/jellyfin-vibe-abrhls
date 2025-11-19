@@ -14,7 +14,9 @@ public class LibraryWatcher : BackgroundService
 
     public LibraryWatcher(ILogger<LibraryWatcher> log, ILibraryManager lib, HlsPackager pack)
     {
-        _log = log; _lib = lib; _pack = pack; _plugin = Plugin.Instance!;
+        _log = log; _lib = lib; _pack = pack; 
+        _plugin = Plugin.Instance!; 
+        
         _lib.ItemAdded += OnItemAdded;
     }
 
