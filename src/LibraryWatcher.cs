@@ -22,25 +22,21 @@ public class LibraryWatcher : BackgroundService
 
     private void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        // Nur Videos verarbeiten
         if (e.Item is Video video && !video.IsVirtualItem)
         {
-            // Task starten, um Event-Loop nicht zu blockieren
             _ = Task.Run(async () => 
             {
                 try 
                 {
-                    bool auto = _plugin.Configuration.AutoOnLibraryScan;
-                    _log.LogWarning("ABR WATCHER: Neues Video '{Name}' (ID: {Id}). AutoScan: {Status}", video.Name, video.Id, auto);
-
-                    if (auto)
+                    if (_plugin.Configuration.AutoOnLibraryScan)
                     {
+                        _log.LogWarning("ABR WATCHER: Neues Video entdeckt: {Name}", video.Name);
                         await _pack.EnsurePackedAsync(video.Id);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError("ABR WATCHER ERROR: Fehler beim Starten für {Item}: {Ex}", video.Name, ex);
+                    _log.LogError("ABR WATCHER FEHLER: {Ex}", ex);
                 }
             });
         }
