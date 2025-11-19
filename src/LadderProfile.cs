@@ -20,8 +20,7 @@ public class LadderProfile
 
     public LadderProfile(string label, int w, int h, long min, long target, long max, string vcodec, string acodec, long abit, bool useOriginalResolution = false)
     {
-        Label = label; 
-        Width = w; Height = h; 
+        Label = label; Width = w; Height = h; 
         MinBitrate = min; TargetBitrate = target; MaxBitrate = max;
         VideoCodec = vcodec; AudioCodec = acodec; AudioBitrate = abit; 
         UseOriginalResolution = useOriginalResolution;
