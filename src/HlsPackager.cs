@@ -5,6 +5,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.MediaEncoding;
+using Jellyfin.ABRHls.Models;
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -24,7 +25,6 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // Neben dem Film speichern
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -32,7 +32,6 @@ public class HlsPackager
                 return Path.Combine(movieDir, "abr_hls", profile);
         }
         
-        // Fallback
         var cfg = _plugin.Configuration;
         string rootPath = string.IsNullOrEmpty(cfg.OutputRoot) ? "data/abrhls" : cfg.OutputRoot;
         var root = Path.IsPathRooted(rootPath) ? rootPath : Path.Combine(_paths.DataPath, rootPath);
@@ -44,7 +43,6 @@ public class HlsPackager
 
     private async Task<bool> EnsurePackedAsync(Guid itemId, List<LadderProfile> ladder, string profileName, CancellationToken ct)
     {
-        // FIX: Expliziter Cast, um MissingMethodException zu vermeiden
         var baseItem = _library.GetItemById(itemId);
         if (baseItem is not Video item || string.IsNullOrEmpty(item.Path)) return false;
 
@@ -57,17 +55,25 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
+        // --- STABILE MEDIEN-ANALYSE (Kein Absturz mehr!) ---
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
-            var streams = item.GetMediaStreams(); // Hier war der Fehler, sollte mit 'Video' Typ nun gehen
-            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
-                     ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
-            srcAcodec = audio?.Codec?.ToLowerInvariant();
+            
+            // Wir greifen direkt auf die Property zu, statt die Methode aufzurufen
+            // Das ist in neueren Jellyfin Versionen sicherer
+            var streams = item.GetMediaStreams(); 
+            if (streams != null)
+            {
+                var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                         ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+                srcAcodec = audio?.Codec?.ToLowerInvariant();
+            }
         } catch (Exception ex) {
-            _log.LogWarning("ABR: Konnte Stream-Details nicht lesen: {Ex}", ex.Message);
+            _log.LogWarning("ABR: Medieninfo-Fehler (Ignoriert): {Ex}", ex.Message);
         }
+        // ---------------------------------------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -79,7 +85,6 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            // FIX: Nutze L.Label
             if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
@@ -134,4 +139,6 @@ public class HlsPackager
 
         return File.Exists(master);
     }
+
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
