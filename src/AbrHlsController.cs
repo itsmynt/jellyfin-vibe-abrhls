@@ -5,7 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Jellyfin.ABRHls.Services;
-using Jellyfin.ABRHls; // Wichtig für LadderProfile
+// Wichtig: Namespace Jellyfin.ABRHls nutzen, damit LadderProfile gefunden wird
+using Jellyfin.ABRHls; 
 
 namespace Jellyfin.ABRHls.Api;
 
@@ -40,12 +41,13 @@ public class AbrHlsController : ControllerBase
         if (path.Contains("/firetv/sdr/")) { profile = "firetv_sdr"; fireTv = true; }
         else if (path.Contains("/firetv/hdr/")) { profile = "firetv_hdr"; fireTv = true; hdr = true; }
 
+        // Check ob Dateien da sind
         bool ready = false;
         if (fireTv && hdr) ready = await _packager.EnsurePackedFireTvHdrAsync(itemId);
         else if (fireTv) ready = await _packager.EnsurePackedFireTvSdrAsync(itemId);
         else ready = await _packager.EnsurePackedAsync(itemId);
 
-        if (!ready) return NotFound("Stream wird generiert...");
+        if (!ready) return NotFound("Stream wird generiert... Bitte warten.");
 
         var outDir = _packager.GetOutputDir(itemId, profile);
         var masterPath = Path.Combine(outDir, "master.m3u8");
@@ -70,6 +72,7 @@ public class AbrHlsController : ControllerBase
         var outDir = _packager.GetOutputDir(itemId, profile);
         var fullPath = Path.GetFullPath(Path.Combine(outDir, suffix));
         
+        // Sicherheitscheck (Path Traversal verhindern)
         if (!fullPath.StartsWith(Path.GetFullPath(outDir))) return Forbid();
 
         if (!System.IO.File.Exists(fullPath)) return NotFound();
@@ -99,7 +102,7 @@ public class AbrHlsController : ControllerBase
         {
             foreach (var p in config.Ladder)
             {
-                // FIX: Hier stand vorher p.Label, aber in LadderProfile heißt es jetzt Name!
+                // KORREKTUR: Hier muss p.Name stehen (nicht p.Label)
                 if (System.IO.File.Exists(Path.Combine(outDir, $"{p.Name}.m3u8"))) 
                 {
                     levels.Add(new { p.Name, p.Bitrate, p.Width });
