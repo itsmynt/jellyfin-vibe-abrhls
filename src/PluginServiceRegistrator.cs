@@ -9,8 +9,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
-        // Wir registrieren alles sauber für Dependency Injection
+        // Packager als Singleton (wird überall verwendet)
         serviceCollection.AddSingleton<HlsPackager>();
+        
+        // Watcher als Hosted Service (läuft im Hintergrund mit)
         serviceCollection.AddHostedService<LibraryWatcher>();
     }
 }
