@@ -14,18 +14,32 @@ public class HlsPackager
     private readonly ILibraryManager _library;
     private readonly Plugin _plugin;
 
+    // Konstante für die Log-Datei
+    private const string LogFile = @"E:\abrhls_debug.txt";
+
     public HlsPackager(ILogger<HlsPackager> log, IApplicationPaths paths, ILibraryManager library)
     { 
         _log = log; 
         _paths = paths; 
         _library = library; 
         _plugin = Plugin.Instance!; 
+        
+        // Start-Eintrag
+        FileLog(">>> PLUGIN WURDE INITIALISIERT <<<");
     }
 
-    // Hilfsmethode für Datei-Logging (Windows-Spezifisch)
+    // Hilfsmethode für Datei-Logging
     private void FileLog(string msg)
     {
-        try { File.AppendAllText(@"C:\abrhls_debug.txt", $"{DateTime.Now}: {msg}\n"); } catch { }
+        try 
+        { 
+            File.AppendAllText(LogFile, $"{DateTime.Now:HH:mm:ss} | {msg}\n"); 
+        } 
+        catch 
+        { 
+            // Wenn wir nicht schreiben können, versuchen wir es im System-Log
+            _log.LogError("ABR FILE LOG ERROR: {Msg}", msg);
+        }
     }
 
     public string GetOutputDir(Guid itemId, string profile = "default")
@@ -49,39 +63,61 @@ public class HlsPackager
 
     private async Task<bool> EnsurePackedAsync(Guid itemId, List<LadderProfile> ladder, string profileName, CancellationToken ct, bool fireTv, bool hdr)
     {
-        FileLog($"--- START ITEM {itemId} ---");
+        FileLog($"--- START AUFTRAG: Item {itemId} ---");
 
         var item = _library.GetItemById(itemId) as Video;
         if (item == null || string.IsNullOrEmpty(item.Path)) 
         {
-            FileLog("Item ist null oder hat keinen Pfad.");
+            FileLog("FEHLER: Item ist null oder hat keinen Pfad.");
             return false;
         }
 
         // 1. FFmpeg Pfad
         var cfg = _plugin.Configuration;
         string ff = cfg.FfmpegPath;
-        if (string.IsNullOrWhiteSpace(ff)) ff = @"E:\Program Files\Jellyfin\Server\ffmpeg.exe"; // Hardcoded Fallback für deinen Server
+        // Fallback Hardcoded für deinen Server
+        if (string.IsNullOrWhiteSpace(ff)) ff = @"E:\Program Files\Jellyfin\Server\ffmpeg.exe";
 
         FileLog($"FFmpeg Pfad: {ff}");
-        FileLog($"Input Video: {item.Path}");
+        FileLog($"Video Input: {item.Path}");
 
         // 2. Output Ordner
         var outDir = GetOutputDir(item.Id, profileName);
-        try { 
-            Directory.CreateDirectory(outDir); 
-            FileLog($"Ordner erstellt: {outDir}");
-        }
+        FileLog($"Output Ziel: {outDir}");
+        
+        try { Directory.CreateDirectory(outDir); }
         catch (Exception ex) {
-            FileLog($"FEHLER Ordner erstellen: {ex.Message}");
+            FileLog($"KRITISCH: Kann Ordner nicht erstellen! {ex.Message}");
             return false;
         }
 
-        // 3. Argumente bauen (Einfachster Test)
-        // Wir nutzen Anführungszeichen für den Pfad, falls Leerzeichen drin sind
-        var args = $"-y -i \"{item.Path}\" -c:v libx264 -preset ultrafast -f hls -hls_time 4 \"{Path.Combine(outDir, "master.m3u8")}\"";
+        var master = Path.Combine(outDir, "master.m3u8");
+        if (File.Exists(master)) 
+        {
+            FileLog("Datei existiert bereits. Überspringe.");
+            return true;
+        }
+
+        // 3. Einfachster FFmpeg Befehl zum Testen
+        // Escaping für Windows Pfade
+        var inputPath = item.Path.Replace("\"", "\\\"");
+        var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
         
-        FileLog($"Argumente: {args}");
+        // Ein einfaches Profil hinzufügen
+        if (ladder.Count > 0) 
+        {
+            var L = ladder[0];
+            args += $" -map 0:v:0 -c:v:0 libx264 -b:v:0 {L.Bitrate} -preset ultrafast";
+            args += " -map 0:a:0? -c:a:0 aac -b:a:0 128k";
+        }
+
+        // HLS Parameter
+        args += " -f hls -hls_time 4 -hls_playlist_type vod";
+        args += " -master_pl_name master.m3u8";
+        args += " -hls_segment_filename \"" + Path.Combine(outDir, "seg_%03d.ts") + "\"";
+        args += " \"" + Path.Combine(outDir, "index.m3u8") + "\"";
+
+        FileLog($"Starte Befehl: {ff} {args}");
 
         var psi = new ProcessStartInfo
         {
@@ -90,40 +126,40 @@ public class HlsPackager
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = outDir 
         };
 
         try 
         {
-            FileLog("Starte Prozess...");
             using var p = Process.Start(psi);
             if (p == null)
             {
-                FileLog("Prozess konnte nicht gestartet werden (null).");
+                FileLog("FEHLER: Process.Start hat NULL zurückgegeben!");
                 return false;
             }
 
             // Output lesen
-            string err = await p.StandardError.ReadToEndAsync();
+            string err = await p.StandardError.ReadToEndAsync(ct);
             await p.WaitForExitAsync(ct);
             
-            FileLog($"Exit Code: {p.ExitCode}");
+            FileLog($"Prozess beendet. Exit Code: {p.ExitCode}");
             if (p.ExitCode != 0)
             {
-                FileLog($"FFMPEG FEHLER OUTPUT:\n{err}");
+                FileLog($"FFMPEG FEHLER LOG:\n{err}");
             }
             else
             {
-                FileLog("Erfolg! Datei sollte da sein.");
+                FileLog("ERFOLG! Konvertierung abgeschlossen.");
             }
         }
         catch (Exception ex)
         {
-            FileLog($"CRASH BEIM STARTEN: {ex}");
+            FileLog($"CRASH Exception: {ex}");
             return false;
         }
 
-        return File.Exists(Path.Combine(outDir, "master.m3u8"));
+        return File.Exists(master);
     }
     
     private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
