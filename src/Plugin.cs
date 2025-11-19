@@ -2,6 +2,7 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Jellyfin.ABRHls.Services;
 
 namespace Jellyfin.ABRHls;
 
@@ -19,7 +20,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     public IEnumerable<PluginPageInfo> GetPages()
     {
-        // Wir nutzen hier den Assembly-Namen "Jellyfin.ABRHls" direkt
+        // Diese Namen müssen exakt mit den LogicalNames in der .csproj übereinstimmen
         yield return new PluginPageInfo 
         { 
             Name = "abr-player.html", 
