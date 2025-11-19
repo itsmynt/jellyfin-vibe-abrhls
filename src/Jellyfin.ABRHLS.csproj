@@ -1,41 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <RootNamespace>Jellyfin.ABRHls</RootNamespace>
     <AssemblyName>Jellyfin.ABRHls</AssemblyName>
-    <Version>2.5.0</Version>
-    <Authors>DeinName</Authors>
-    <Description>Native ABR HLS Streaming for Jellyfin</Description>
-    
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>2.6.0</Version>
+    <LangVersion>12.0</LangVersion>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Jellyfin.Controller" Version="10.10.3" />
-    <PackageReference Include="Jellyfin.Model" Version="10.10.3" />
-    <PackageReference Include="Jellyfin.Data" Version="10.10.3" />
-    
+    <PackageReference Include="Jellyfin.Server.Common" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
-    
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="8.0.0" />
   </ItemGroup>
-
- <ItemGroup>
-    <EmbeddedResource Include="Configuration\configPage.html">
-      <LogicalName>Jellyfin.ABRHls.Configuration.configPage.html</LogicalName>
-    </EmbeddedResource>
-
-    <EmbeddedResource Include="web\abr-player.html">
-      <LogicalName>Jellyfin.ABRHls.web.abr-player.html</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="web\abr-player.js">
-      <LogicalName>Jellyfin.ABRHls.web.abr-player.js</LogicalName>
-    </EmbeddedResource>
+  <ItemGroup>
+    <EmbeddedResource Include="web/abr-player.html" LogicalName="web/abr-player.html" />
+    <EmbeddedResource Include="web/abr-player.js" LogicalName="web/abr-player.js" />
   </ItemGroup>
-
 </Project>
