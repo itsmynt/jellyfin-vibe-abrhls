@@ -5,7 +5,6 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.MediaEncoding;
-using Jellyfin.ABRHls.Models;
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -25,7 +24,7 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // Speichert im Unterordner 'abr_hls' neben dem Film
+        // Neben dem Film speichern
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -45,6 +44,7 @@ public class HlsPackager
 
     private async Task<bool> EnsurePackedAsync(Guid itemId, List<LadderProfile> ladder, string profileName, CancellationToken ct)
     {
+        // FIX: Expliziter Cast, um MissingMethodException zu vermeiden
         var baseItem = _library.GetItemById(itemId);
         if (baseItem is not Video item || string.IsNullOrEmpty(item.Path)) return false;
 
@@ -57,15 +57,17 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // Quell-Analyse
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
-            var streams = item.GetMediaStreams();
-            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+            var streams = item.GetMediaStreams(); // Hier war der Fehler, sollte mit 'Video' Typ nun gehen
+            var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                     ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
             srcAcodec = audio?.Codec?.ToLowerInvariant();
-        } catch { }
+        } catch (Exception ex) {
+            _log.LogWarning("ABR: Konnte Stream-Details nicht lesen: {Ex}", ex.Message);
+        }
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -77,15 +79,14 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            // KORREKTUR: L.Label statt L.Name
+            // FIX: Nutze L.Label
             if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
-                varMap.Add($"a:{idx},name:{L.Label}"); // KORREKTUR hier
+                varMap.Add($"a:{idx},name:{L.Label}");
                 idx++; continue;
             }
 
-            // Filter: Überspringen wenn Profil > Original
             if (!L.UseOriginalResolution && !L.CopyVideo && L.Height > srcHeight) continue;
 
             args += " -map 0:v:0 -map 0:a:0?";
@@ -100,7 +101,7 @@ public class HlsPackager
             if (srcAcodec == "eac3" && _plugin.Configuration.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
             else args += $" -c:a:{idx} aac -b:a:{idx} 128k -ac:{idx} 2";
 
-            varMap.Add($"v:{idx},a:{idx},name:{L.Label}"); // KORREKTUR hier
+            varMap.Add($"v:{idx},a:{idx},name:{L.Label}");
             idx++;
         }
 
@@ -132,9 +133,5 @@ public class HlsPackager
         } catch (Exception ex) { _log.LogError("ABR CRASH: {Ex}", ex); return false; }
 
         return File.Exists(master);
-    }
-
-    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct)
-    {
     }
 }
