@@ -4,8 +4,10 @@ namespace Jellyfin.ABRHls;
 
 public class LadderProfile
 {
+    // 1. Leerer Konstruktor (Pflicht für Jellyfin)
     public LadderProfile() {}
 
+    // 2. Voller Konstruktor (Pflicht für unseren Code)
     public LadderProfile(string name, int width, int height, long minBitrate, long targetBitrate, long maxBitrate, string videoCodec, string audioCodec, long audioBitrate, bool useOriginalResolution = false, bool copyVideo = false)
     {
         Name = name;
@@ -33,6 +35,7 @@ public class LadderProfile
     public bool UseOriginalResolution { get; set; }
     public bool CopyVideo { get; set; }
 
+    // 3. Helper mit XmlIgnore (Verhindert Speicher-Fehler!)
     [XmlIgnore] public long Bitrate => TargetBitrate;
     [XmlIgnore] public long Maxrate => MaxBitrate;
     [XmlIgnore] public long Bufsize => MaxBitrate * 2;
