@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Jellyfin.ABRHls.Models;
 using Jellyfin.ABRHls.Services;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -48,4 +49,6 @@ public class AbrHlsController : ControllerBase
         }
         return Ok(new { Available = levels.Any(), Levels = levels });
     }
+    
+    // (StreamPlaylist Methode hier weggelassen, ist unverändert)
 }
