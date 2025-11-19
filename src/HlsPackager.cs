@@ -5,7 +5,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Controller.Entities;
 using Microsoft.Extensions.Logging;
 using MediaBrowser.Controller.MediaEncoding;
-using Jellyfin.ABRHls; 
+using Jellyfin.ABRHls;
 
 namespace Jellyfin.ABRHls.Services;
 
@@ -15,14 +15,22 @@ public class HlsPackager
     private readonly IApplicationPaths _paths;
     private readonly ILibraryManager _library;
     private readonly IMediaEncoder _mediaEncoder;
+    private readonly IMediaSourceManager _mediaSourceManager; // NEU
     private readonly Plugin _plugin;
 
-    public HlsPackager(ILogger<HlsPackager> log, IApplicationPaths paths, ILibraryManager library, IMediaEncoder mediaEncoder)
+    // Konstruktor erweitert um IMediaSourceManager
+    public HlsPackager(
+        ILogger<HlsPackager> log, 
+        IApplicationPaths paths, 
+        ILibraryManager library, 
+        IMediaEncoder mediaEncoder,
+        IMediaSourceManager mediaSourceManager)
     { 
         _log = log; 
         _paths = paths; 
         _library = library; 
         _mediaEncoder = mediaEncoder;
+        _mediaSourceManager = mediaSourceManager;
         _plugin = Plugin.Instance!; 
     }
 
@@ -58,22 +66,29 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
+        // --- 10.11 KOMPATIBLE MEDIEN-ANALYSE ---
         int srcHeight = 1080;
         string? srcAcodec = null;
+
         try {
             if (item.Height > 0) srcHeight = item.Height;
+
+            // Wir holen die MediaSources über den Manager (der sichere Weg in 10.11)
+            var sources = await _mediaSourceManager.GetMediaSources(new MediaSourceInfoQuery { ItemId = itemId }, ct);
+            var mainSource = sources.FirstOrDefault();
             
-            // DIES IST DER KNACKPUNKT: Durch das .csproj Update funktioniert das hier sicher.
-            var streams = item.GetMediaStreams(); 
-            if (streams != null)
+            if (mainSource != null && mainSource.MediaStreams != null)
             {
-                var audio = streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
-                         ?? streams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
+                var audio = mainSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
+                         ?? mainSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Audio);
                 srcAcodec = audio?.Codec?.ToLowerInvariant();
             }
-        } catch (Exception ex) {
-            _log.LogWarning("ABR: Medieninfo-Warnung: {Ex}", ex.Message);
+        } 
+        catch (Exception ex) 
+        {
+            _log.LogWarning("ABR: Konnte Medieninfos nicht lesen: {Ex}", ex.Message);
         }
+        // ---------------------------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -85,7 +100,6 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            // Verwende .Label statt .Name
             if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
@@ -111,7 +125,10 @@ public class HlsPackager
             idx++;
         }
 
-        if (idx == 0) return false;
+        if (idx == 0) {
+            _log.LogWarning("ABR: Keine Profile für {Item} übrig.", item.Name);
+            return false;
+        }
 
         string segType = _plugin.Configuration.UseFmp4 ? "-hls_segment_type fmp4" : "";
         string ext = _plugin.Configuration.UseFmp4 ? "m4s" : "ts";
@@ -124,7 +141,15 @@ public class HlsPackager
              if(n != null) Directory.CreateDirectory(Path.Combine(outDir, n));
         }
 
-        var psi = new ProcessStartInfo { FileName = ff, Arguments = args, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = outDir };
+        var psi = new ProcessStartInfo 
+        { 
+            FileName = ff, 
+            Arguments = args, 
+            RedirectStandardError = true, 
+            UseShellExecute = false, 
+            CreateNoWindow = true, 
+            WorkingDirectory = outDir 
+        };
         
         _log.LogWarning("ABR START: {Item} -> {Dir}", item.Name, outDir);
         
@@ -133,13 +158,14 @@ public class HlsPackager
             if (p != null) {
                 var err = await p.StandardError.ReadToEndAsync(ct);
                 await p.WaitForExitAsync(ct);
-                if (p.ExitCode != 0) { _log.LogError("ABR FEHLER:\n{Err}", err); return false; }
+                if (p.ExitCode != 0) { 
+                    _log.LogError("ABR FEHLER {Code}:\n{Err}", p.ExitCode, err); 
+                    return false; 
+                }
                 _log.LogWarning("ABR FERTIG: {Item}", item.Name);
             }
         } catch (Exception ex) { _log.LogError("ABR CRASH: {Ex}", ex); return false; }
 
         return File.Exists(master);
     }
-
-    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
