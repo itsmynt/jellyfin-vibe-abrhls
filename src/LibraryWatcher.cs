@@ -16,7 +16,6 @@ public class LibraryWatcher : BackgroundService
     {
         _log = log; _lib = lib; _pack = pack; 
         _plugin = Plugin.Instance!; 
-        
         _lib.ItemAdded += OnItemAdded;
     }
 
@@ -26,18 +25,12 @@ public class LibraryWatcher : BackgroundService
         {
             _ = Task.Run(async () => 
             {
-                try 
-                {
-                    if (_plugin.Configuration.AutoOnLibraryScan)
-                    {
+                try {
+                    if (_plugin.Configuration.AutoOnLibraryScan) {
                         _log.LogWarning("ABR WATCHER: Neues Video entdeckt: {Name}", video.Name);
                         await _pack.EnsurePackedAsync(video.Id);
                     }
-                }
-                catch (Exception ex)
-                {
-                    _log.LogError("ABR WATCHER FEHLER: {Ex}", ex);
-                }
+                } catch (Exception ex) { _log.LogError("ABR WATCHER FEHLER: {Ex}", ex); }
             });
         }
     }
