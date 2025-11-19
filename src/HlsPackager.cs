@@ -15,10 +15,9 @@ public class HlsPackager
     private readonly IApplicationPaths _paths;
     private readonly ILibraryManager _library;
     private readonly IMediaEncoder _mediaEncoder;
-    private readonly IMediaSourceManager _mediaSourceManager; // NEU
+    private readonly IMediaSourceManager _mediaSourceManager; // Neu für 10.11
     private readonly Plugin _plugin;
 
-    // Konstruktor erweitert um IMediaSourceManager
     public HlsPackager(
         ILogger<HlsPackager> log, 
         IApplicationPaths paths, 
@@ -66,17 +65,17 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // --- 10.11 KOMPATIBLE MEDIEN-ANALYSE ---
+        // --- 10.11 KOMPATIBLE ANALYSE ---
         int srcHeight = 1080;
         string? srcAcodec = null;
 
         try {
             if (item.Height > 0) srcHeight = item.Height;
 
-            // Wir holen die MediaSources über den Manager (der sichere Weg in 10.11)
-            var sources = await _mediaSourceManager.GetMediaSources(new MediaSourceInfoQuery { ItemId = itemId }, ct);
-            var mainSource = sources.FirstOrDefault();
-            
+            // Der sichere Weg in 10.11: MediaSourceManager nutzen
+            var mediaSources = await _mediaSourceManager.GetMediaSources(new MediaSourceInfoQuery { ItemId = itemId }, ct);
+            var mainSource = mediaSources.FirstOrDefault();
+
             if (mainSource != null && mainSource.MediaStreams != null)
             {
                 var audio = mainSource.MediaStreams.FirstOrDefault(s => s.Type == MediaStreamType.Audio && s.IsDefault) 
@@ -86,9 +85,9 @@ public class HlsPackager
         } 
         catch (Exception ex) 
         {
-            _log.LogWarning("ABR: Konnte Medieninfos nicht lesen: {Ex}", ex.Message);
+            _log.LogWarning("ABR: Warnung bei Medienanalyse: {Ex}", ex.Message);
         }
-        // ---------------------------------------
+        // -------------------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -125,10 +124,7 @@ public class HlsPackager
             idx++;
         }
 
-        if (idx == 0) {
-            _log.LogWarning("ABR: Keine Profile für {Item} übrig.", item.Name);
-            return false;
-        }
+        if (idx == 0) return false;
 
         string segType = _plugin.Configuration.UseFmp4 ? "-hls_segment_type fmp4" : "";
         string ext = _plugin.Configuration.UseFmp4 ? "m4s" : "ts";
@@ -168,4 +164,6 @@ public class HlsPackager
 
         return File.Exists(master);
     }
+
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
