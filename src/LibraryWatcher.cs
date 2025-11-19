@@ -15,25 +15,35 @@ public class LibraryWatcher : BackgroundService
     public LibraryWatcher(ILogger<LibraryWatcher> log, ILibraryManager lib, HlsPackager pack)
     {
         _log = log; _lib = lib; _pack = pack; 
-        _plugin = Plugin.Instance!; // Nutzung der statischen Instanz
+        _plugin = Plugin.Instance!; 
         
         _lib.ItemAdded += OnItemAdded;
-        // Optional: Auch bei Updates reagieren (kann aber Endlosschleifen erzeugen)
-        // _lib.ItemUpdated += OnItemUpdated; 
     }
 
     private void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        // DIAGNOSE: Zeige IMMER, dass ein Item gefunden wurde
         if (e.Item is Video video && !video.IsVirtualItem)
         {
-            bool auto = _plugin.Configuration.AutoOnLibraryScan;
-            _log.LogWarning("ABR WATCHER: Neues Video '{Name}' (ID: {Id}). AutoScan ist: {Status}", video.Name, video.Id, auto);
-
-            if (auto)
+            // Wir nutzen Task.Run, um den Event-Handler nicht zu blockieren
+            _ = Task.Run(async () => 
             {
-                _ = Task.Run(() => _pack.EnsurePackedAsync(video.Id));
-            }
+                try 
+                {
+                    bool auto = _plugin.Configuration.AutoOnLibraryScan;
+                    _log.LogWarning("ABR WATCHER: Neues Video '{Name}' (ID: {Id}). AutoScan: {Status}", video.Name, video.Id, auto);
+
+                    if (auto)
+                    {
+                        // Hier rufen wir den Packager auf. Wenn der crasht, fangen wir es jetzt ab.
+                        await _pack.EnsurePackedAsync(video.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // DIESE Zeile wird uns retten!
+                    _log.LogError("ABR WATCHER CRASH: Fehler beim Starten des Packagers: {Ex}", ex);
+                }
+            });
         }
     }
 
