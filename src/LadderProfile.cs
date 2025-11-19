@@ -1,8 +1,8 @@
-namespace Jellyfin.ABRHls; // Namespace ohne .Models
+namespace Jellyfin.ABRHls;
 
 public class LadderProfile
 {
-    public string Label { get; set; } = "1080p"; // Label statt Name
+    public string Label { get; set; } = "1080p";
     public int Width { get; set; }
     public int Height { get; set; }
     public long MinBitrate { get; set; }
@@ -20,8 +20,7 @@ public class LadderProfile
 
     public LadderProfile(string label, int w, int h, long min, long target, long max, string vcodec, string acodec, long abit, bool useOriginalResolution = false)
     {
-        Label = label; 
-        Width = w; Height = h; 
+        Label = label; Width = w; Height = h; 
         MinBitrate = min; TargetBitrate = target; MaxBitrate = max;
         VideoCodec = vcodec; AudioCodec = acodec; AudioBitrate = abit; 
         UseOriginalResolution = useOriginalResolution;
