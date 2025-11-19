@@ -12,7 +12,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public List<LadderProfile> Ladder { get; set; } = new()
     {
-        // FIX: Jetzt "useOriginalResolution" (kleines u), damit es zum neuen Konstruktor passt
+        // FIX: "useOriginalResolution" (kleines u), passt jetzt zum Konstruktor
         new("source", 0, 0, 12_000_000, 16_000_000, 32_000_000, "libx264", "aac", 192_000, useOriginalResolution:true),
         new("1080p", 1920, 1080, 6_000_000, 6_400_000, 12_000_000, "libx264", "aac", 128_000),
         new("720p", 1280, 720, 3_000_000, 3_200_000, 6_000_000, "libx264", "aac", 128_000),
@@ -24,7 +24,7 @@ public class PluginConfiguration : BasePluginConfiguration
         new("2160p", 3840, 2160, 12_000_000, 14_000_000, 28_000_000, "hevc", "eac3", 640_000),
         new("1080p", 1920, 1080, 5_000_000, 6_000_000, 12_000_000, "hevc", "eac3", 448_000),
         new("720p", 1280, 720, 2_500_000, 3_000_000, 6_000_000, "hevc", "eac3", 320_000),
-        // Auch hier klein
+        // FIX: Auch hier "useOriginalResolution"
         new("audio", 0, 0, 96_000, 128_000, 256_000, "", "aac", 96_000, useOriginalResolution:true)
     };
 
@@ -32,7 +32,7 @@ public class PluginConfiguration : BasePluginConfiguration
     {
         new("2160p", 3840, 2160, 15_000_000, 18_000_000, 35_000_000, "hevc", "eac3", 640_000),
         new("1080p", 1920, 1080, 6_000_000, 7_000_000, 14_000_000, "hevc", "eac3", 448_000),
-        // Auch hier klein
+        // FIX: Auch hier "useOriginalResolution"
         new("audio", 0, 0, 96_000, 128_000, 256_000, "", "aac", 96_000, useOriginalResolution:true)
     };
 
