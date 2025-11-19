@@ -28,7 +28,6 @@ public class HlsPackager
 
     public string GetOutputDir(BaseItem item, string profile = "default")
     {
-        // 1. Versuch: Speicherort neben dem Film
         if (item != null && !string.IsNullOrEmpty(item.Path))
         {
             var movieDir = Path.GetDirectoryName(item.Path);
@@ -36,7 +35,6 @@ public class HlsPackager
                 return Path.Combine(movieDir, "abr_hls", profile);
         }
         
-        // 2. Fallback: Config-Pfad
         var cfg = _plugin.Configuration;
         string rootPath = string.IsNullOrEmpty(cfg.OutputRoot) ? "data/abrhls" : cfg.OutputRoot;
         var root = Path.IsPathRooted(rootPath) ? rootPath : Path.Combine(_paths.DataPath, rootPath);
@@ -60,14 +58,15 @@ public class HlsPackager
         string ff = _plugin.Configuration.FfmpegPath;
         if (string.IsNullOrWhiteSpace(ff)) ff = _mediaEncoder.EncoderPath ?? "ffmpeg";
 
-        // --- MEDIEN-ANALYSE ---
+        // --- KORREKTUR: Nutzung der Methode GetMediaStreams() ---
         int srcHeight = 1080;
         string? srcAcodec = null;
         try {
             if (item.Height > 0) srcHeight = item.Height;
             
-            // FIX: Direkter Zugriff auf die Property statt Methodenaufruf
-            var streams = item.MediaStreams; 
+            // Hier nutzen wir wieder die Methode. Da wir gleich in der .csproj auf 10.10.3 gehen, 
+            // passt das wieder zusammen.
+            var streams = item.GetMediaStreams();
             
             if (streams != null)
             {
@@ -76,9 +75,9 @@ public class HlsPackager
                 srcAcodec = audio?.Codec?.ToLowerInvariant();
             }
         } catch (Exception ex) {
-            _log.LogWarning("ABR: Medieninfo-Warnung: {Ex}", ex.Message);
+            _log.LogWarning("ABR: Medieninfo-Fehler (Ignoriert): {Ex}", ex.Message);
         }
-        // ----------------------
+        // --------------------------------------------------------
 
         var inputPath = item.Path.Replace("\"", "\\\"");
         var args = $"-y -hide_banner -loglevel error -i \"{inputPath}\"";
@@ -90,7 +89,6 @@ public class HlsPackager
         {
             var L = ladder[i];
             
-            // Audio Only
             if (L.Label == "audio") {
                 if (!_plugin.Configuration.AddStereoAacFallback) continue;
                 args += $" -map 0:a:0? -c:a:{idx} aac -b:a:{idx} 128k -vn:{idx}";
@@ -98,12 +96,9 @@ public class HlsPackager
                 idx++; continue;
             }
 
-            // Filter: Überspringen wenn Profil größer als Original
             if (!L.UseOriginalResolution && !L.CopyVideo && L.Height > srcHeight) continue;
 
             args += " -map 0:v:0 -map 0:a:0?";
-            
-            // Video Encoding
             if (L.CopyVideo) args += $" -c:v:{idx} copy";
             else {
                 args += $" -c:v:{idx} {L.VideoCodec} -pix_fmt:{idx} yuv420p -b:v:{idx} {L.TargetBitrate}";
@@ -112,7 +107,6 @@ public class HlsPackager
                 if (!L.UseOriginalResolution && L.Width > 0) args += $" -vf:{idx} \"scale=w={L.Width}:h={L.Height}:force_original_aspect_ratio=decrease\"";
             }
 
-            // Audio Encoding
             if (srcAcodec == "eac3" && _plugin.Configuration.KeepEac3IfPresent) args += $" -c:a:{idx} copy";
             else args += $" -c:a:{idx} aac -b:a:{idx} 128k -ac:{idx} 2";
 
@@ -163,4 +157,6 @@ public class HlsPackager
 
         return File.Exists(master);
     }
+
+    private async Task GenerateWebVttThumbnailsAsync(string ffmpeg, Video item, string outDir, int interval, int width, CancellationToken ct) { }
 }
