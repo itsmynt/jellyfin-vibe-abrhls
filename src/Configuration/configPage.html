@@ -7,18 +7,15 @@
     <div id="abrHlsConfigPage" data-role="page" class="type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content">
             <div class="content-primary">
-                <form id="abrHlsConfigForm">
+                
+                <div class="verticalSection">
+                    <div class="sectionTitleContainer flex align-items-center">
+                        <h2 class="sectionTitle">ABR HLS Einstellungen</h2>
+                    </div>
                     
-                    <div class="verticalSection">
-                        <div class="sectionTitleContainer flex align-items-center">
-                            <h2 class="sectionTitle">ABR HLS Einstellungen</h2>
-                        </div>
-                        
-                        <p style="background: #333; padding: 10px; border-radius: 5px; color: #ccc;">
-                            <i class="fas fa-info-circle"></i> 
-                            Status: Wenn du hier speicherst, werden die Änderungen sofort aktiv.
-                        </p>
-                        
+                    <p id="statusMsg" style="display:none; padding:10px; border-radius:4px; margin-bottom:20px;"></p>
+
+                    <form id="abrHlsConfigForm">
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="FfmpegPath">FFmpeg Pfad</label>
                             <input is="emby-input" type="text" id="FfmpegPath" name="FfmpegPath" />
@@ -28,15 +25,15 @@
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="OutputRoot">Speicherort</label>
                             <input is="emby-input" type="text" id="OutputRoot" name="OutputRoot" />
-                            <div class="fieldDescription">Standard: data/abrhls</div>
+                            <div class="fieldDescription">Ordner für die konvertierten Dateien.</div>
                         </div>
 
                         <div class="checkboxContainer checkboxContainer-withDescription">
                             <label>
                                 <input is="emby-checkbox" type="checkbox" id="AutoOnLibraryScan" name="AutoOnLibraryScan" />
-                                <span>Automatisch konvertieren (Library Scan)</span>
+                                <span>Automatisch konvertieren (Auto-Scan)</span>
                             </label>
-                            <div class="fieldDescription">Aktiviert die Konvertierung für neue/geänderte Filme.</div>
+                            <div class="fieldDescription">Startet die Konvertierung, sobald ein neuer Film erkannt wird.</div>
                         </div>
                         
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -50,60 +47,63 @@
                         <button is="emby-button" type="submit" class="raised button-submit block">
                             <span>Speichern</span>
                         </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
 
         <script type="text/javascript">
-            // Wir kapseln alles in einen Scope, damit nichts kollidiert
             (function () {
-                // Die GUID aus deiner Plugin.cs
                 var pluginId = 'b91b3f1d-6c74-4f2e-9e9d-6a27b9a2f3d1';
                 var pageId = '#abrHlsConfigPage';
 
-                // Funktion zum Laden der Daten
-                function loadConfig(page) {
+                function showStatus(msg, isError) {
+                    var el = document.querySelector('#statusMsg');
+                    el.textContent = msg;
+                    el.style.display = 'block';
+                    el.style.backgroundColor = isError ? '#cc3333' : '#33cc33';
+                    el.style.color = '#fff';
+                    setTimeout(() => el.style.display = 'none', 5000);
+                }
+
+                document.querySelector(pageId).addEventListener('pageshow', function() {
                     Dashboard.showLoadingMsg();
+                    
+                    var page = this;
+                    
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        // Werte setzen
                         page.querySelector('#FfmpegPath').value = config.FfmpegPath || "";
                         page.querySelector('#OutputRoot').value = config.OutputRoot || "data/abrhls";
-                        
-                        // Checkboxen setzen (Jellyfin spezifisch)
                         page.querySelector('#AutoOnLibraryScan').checked = config.AutoOnLibraryScan;
                         page.querySelector('#GenerateThumbnails').checked = config.GenerateThumbnails;
                         
+                        // WICHTIG: Lade-Spinner entfernen!
                         Dashboard.hideLoadingMsg();
+                    }).catch(function(err) {
+                        console.error("ABR Config Load Error:", err);
+                        Dashboard.hideLoadingMsg(); // Auch bei Fehler entfernen!
+                        showStatus("Fehler beim Laden der Config: " + err, true);
                     });
-                }
 
-                // Funktion zum Speichern
-                function saveConfig(page) {
-                    Dashboard.showLoadingMsg();
-                    
-                    ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-                        config.FfmpegPath = page.querySelector('#FfmpegPath').value;
-                        config.OutputRoot = page.querySelector('#OutputRoot').value;
-                        config.AutoOnLibraryScan = page.querySelector('#AutoOnLibraryScan').checked;
-                        config.GenerateThumbnails = page.querySelector('#GenerateThumbnails').checked;
-
-                        ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
-                            Dashboard.processPluginConfigurationUpdateResult(result);
-                        });
-                    });
-                }
-
-                // Event Listener: Wenn Jellyfin diese Seite anzeigt
-                document.querySelector(pageId).addEventListener('pageshow', function() {
-                    var page = this;
-                    loadConfig(page);
-
-                    // Formular Submit abfangen
+                    // Event Listener für Speichern
                     page.querySelector('#abrHlsConfigForm').addEventListener('submit', function (e) {
                         e.preventDefault();
-                        saveConfig(page);
-                        return false;
+                        Dashboard.showLoadingMsg();
+                        
+                        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                            config.FfmpegPath = page.querySelector('#FfmpegPath').value;
+                            config.OutputRoot = page.querySelector('#OutputRoot').value;
+                            config.AutoOnLibraryScan = page.querySelector('#AutoOnLibraryScan').checked;
+                            config.GenerateThumbnails = page.querySelector('#GenerateThumbnails').checked;
+
+                            ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                                Dashboard.processPluginConfigurationUpdateResult(result);
+                                showStatus("Einstellungen gespeichert!", false);
+                            }).catch(function(err) {
+                                Dashboard.hideLoadingMsg();
+                                showStatus("Fehler beim Speichern!", true);
+                            });
+                        });
                     });
                 });
             })();
